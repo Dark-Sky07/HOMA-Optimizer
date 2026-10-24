@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-VERSION = "5.1.0"
+VERSION = "5.2.0"
 PANEL_DIR = Path(__file__).resolve().parent
 STATIC_DIR = PANEL_DIR / "static"
 INSTALL_ROOT = PANEL_DIR.parent

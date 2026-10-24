@@ -7,7 +7,7 @@
   **Rise Above Limits · سرورت را به اوج ببر**
 
   <p>
-    <img src="https://img.shields.io/badge/Release-v5.1.0-e5b45b.svg?style=for-the-badge&logo=github" alt="Release v5.1.0" />
+    <img src="https://img.shields.io/badge/Release-v5.2.0-e5b45b.svg?style=for-the-badge&logo=github" alt="Release v5.2.0" />
     <img src="https://img.shields.io/badge/Web%20Panel-FA%20%2B%20EN-72d3aa.svg?style=for-the-badge" alt="Bilingual Web Panel" />
     <img src="https://img.shields.io/badge/OS-Ubuntu%20%7C%20Debian-orange.svg?style=for-the-badge&logo=linux" alt="OS Support" />
     <img src="https://img.shields.io/badge/Runtime-Bash%20%2B%20Python%203-informational.svg?style=for-the-badge" alt="Runtime" />
@@ -23,7 +23,7 @@
               |_| |_|\___/|_|  |_/_/   \_\
 
                VPS OPTIMIZER & COMMAND CENTER
-                    Version 5.1 · Rise Above Limits
+                    Version 5.2 · Rise Above Limits
 ========================================================================
 ```
 
@@ -33,7 +33,7 @@
 
 ---
 
-## ✨ امکانات نسخهٔ ۵٫۱
+## ✨ امکانات نسخهٔ ۵٫۲
 
 ### پنل گرافیکی HOMA
 
@@ -271,6 +271,12 @@ python3 -m unittest discover -s panel -p 'test_*.py' -v
 # JavaScript، در صورت وجود Node روی سیستم توسعه
 node --check panel/static/app.js
 ```
+
+---
+
+## 🏷️ نسخه‌گذاری و انتشار
+
+HOMA از [Semantic Versioning](https://semver.org/) پیروی می‌کند. **هر تغییر با شمارهٔ نسخهٔ جدید، یک ورودی در [CHANGELOG.md](CHANGELOG.md) و یک GitHub Release جداگانه منتشر می‌شود**: افزایش قابلیت با نسخهٔ Minor، رفع اشکال با Patch و تغییر ناسازگار با Major. فهرست نسخه‌ها در [صفحهٔ Releases](https://github.com/Dark-Sky07/HOMA-Optimizer/releases) نگهداری می‌شود.
 
 ---
 

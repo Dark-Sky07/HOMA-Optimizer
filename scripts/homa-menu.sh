@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #===============================================================================
 #  homa — HOMA VPS All In One Optimizer Interactive TUI Menu
-#  Version: 5.1.0 (Graphical Command Center Edition)
+#  Version: 5.2.0 (Graphical Command Center Edition)
 #
 #  100% English Terminal Output to guarantee pristine rendering across all
 #  SSH clients, mobile terminals (Termius, JuiceSSH), and web consoles.
@@ -10,7 +10,7 @@
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
 set -u
 
-VERSION="5.1.0"
+VERSION="5.2.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [ -f "${SCRIPT_DIR}/homa-watchdog.sh" ] || SCRIPT_DIR="/opt/homa/scripts"
 [ -f "${SCRIPT_DIR}/homa-watchdog.sh" ] || SCRIPT_DIR="/opt/homa"
