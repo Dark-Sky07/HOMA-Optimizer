@@ -230,7 +230,11 @@ printf "  Installation:     %s\n" "$INSTALL_DIR"
 printf "  Terminal suite:   %shoma%s\n" "$C_W" "$C_0"
 printf "  Graphical panel:  %shoma-panel%s\n" "$C_W" "$C_0"
 printf "  Local URL:        %shttp://127.0.0.1:8787%s\n" "$C_W" "$C_0"
-printf "  Access token:     %s%s%s\n" "$C_W" "$PANEL_TOKEN" "$C_0"
+if [ "${HOMA_NONINTERACTIVE:-0}" = "1" ]; then
+  printf "  Access token:     stored in %s\n" "$PANEL_ENV"
+else
+  printf "  Access token:     %s%s%s\n" "$C_W" "$PANEL_TOKEN" "$C_0"
+fi
 if [ "$PANEL_STARTED" -eq 1 ]; then
   printf "  Panel service:    active (homa-panel.service)\n"
 else

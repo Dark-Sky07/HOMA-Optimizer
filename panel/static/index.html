@@ -88,7 +88,7 @@
       <div class="sidebar-spacer"></div>
       <div class="core-card">
         <div class="core-emblem"><img src="/assets/homa-mark.svg" alt=""></div>
-        <div class="core-card-title"><span>HOMA CORE</span><span class="version-tag">v5.0</span></div>
+        <div class="core-card-title"><span>HOMA CORE</span><span class="version-tag">v5.1</span></div>
         <p data-i18n="coreTagline">سبک‌تر، سریع‌تر، همیشه آمادهٔ پرواز.</p>
         <div class="core-status"><span class="status-dot online"></span><span id="core-status-text" data-i18n="connecting">در حال اتصال به هسته</span></div>
       </div>
@@ -109,6 +109,9 @@
         </div>
         <div class="topbar-actions">
           <div class="live-pill" id="connection-pill"><span class="status-dot connecting"></span><span id="connection-text" data-i18n="connectingShort">در حال اتصال</span></div>
+          <button class="icon-button update-button" type="button" data-action="suite-update" aria-label="Update HOMA" title="Update HOMA">
+            <svg><use href="#i-refresh"></use></svg><span class="update-button-dot" aria-hidden="true"></span>
+          </button>
           <button class="language-button" id="language-toggle" type="button" aria-label="Switch language"><svg><use href="#i-globe"></use></svg><span>EN</span></button>
           <button class="icon-button" id="refresh-button" type="button" aria-label="Refresh dashboard" title="Refresh">
             <svg><use href="#i-refresh"></use></svg>
@@ -165,6 +168,10 @@
                 <svg viewBox="0 0 180 110" role="img" aria-label="System health score">
                   <path class="gauge-track" d="M25 95a65 65 0 0 1 130 0" pathLength="100"/>
                   <path class="gauge-value" id="health-arc" d="M25 95a65 65 0 0 1 130 0" pathLength="100" stroke-dasharray="0 100"/>
+                  <g class="health-feathers" aria-hidden="true">
+                    <path d="M20 93 7 98M24 72 10 68M36 50 24 41M55 34 48 21M160 93l13 5M156 72l14-4M144 50l12-9M125 34l7-13"/>
+                    <path class="feather-tips" d="m7 98 5-1m-2-29 5 3m9-30 5 5m19-25 2 6m123 71-5-1m2-29-5 3m-9-30-5 5m-19-25-2 6"/>
+                  </g>
                 </svg>
                 <div class="health-score"><strong id="health-score">—</strong><span>/ 100</span></div>
               </div>
@@ -212,7 +219,21 @@
                   <div><span class="rate-label"><i class="legend-dot upload"></i><span data-i18n="upload">ارسال</span></span><strong id="tx-rate" dir="ltr">—</strong></div>
                 </div>
               </div>
-              <div class="chart-wrap"><canvas id="network-chart" role="img" aria-label="Live network throughput chart"></canvas><div class="chart-empty" id="chart-empty"><span class="status-dot connecting"></span><span data-i18n="waitingForTraffic">در انتظار نخستین نمونه‌های ترافیک</span></div></div>
+              <div class="chart-wrap">
+                <svg class="flight-map" viewBox="0 0 760 205" preserveAspectRatio="none" aria-hidden="true">
+                  <g class="map-contours">
+                    <path d="M-20 60 38 45l29 9 28-23 35 8 22-17 44 13 31-7 20 20 42 4 25 22-13 20-39 2-18 26-38-4-29 22-32-9-22 15-41-18-35 6-32-22-42 4"/>
+                    <path d="m780 38-50 9-24-12-37 19-29-8-43 23-35-5-21 24-43 2-17 24 21 19 42-8 26 20 35-12 40 14 31-19 40 4 34-25 45 7 39-19"/>
+                    <path d="M94 177c50-26 83-21 119 4s77 22 118-3 84-22 127 3 91 22 167-7"/>
+                  </g>
+                  <path class="flight-route route-shadow" d="M22 154C146 35 237 190 364 91S592 35 738 79"/>
+                  <path class="flight-route" d="M22 154C146 35 237 190 364 91S592 35 738 79"/>
+                  <g class="flight-nodes"><circle cx="22" cy="154" r="3"/><circle cx="364" cy="91" r="3"/><circle cx="738" cy="79" r="3"/></g>
+                </svg>
+                <img class="chart-homa-mark" src="/assets/homa-mark.svg" alt="" aria-hidden="true">
+                <canvas id="network-chart" role="img" aria-label="Live network throughput chart"></canvas>
+                <div class="chart-empty" id="chart-empty"><span class="status-dot connecting"></span><span data-i18n="waitingForTraffic">در انتظار نخستین نمونه‌های ترافیک</span></div>
+              </div>
               <div class="chart-footer"><span data-i18n="lastMinute">۶۰ نمونهٔ اخیر</span><span><span class="status-dot online"></span><span data-i18n="autoRefresh">به‌روزرسانی خودکار</span></span></div>
             </article>
 
@@ -243,6 +264,16 @@
           <article class="optimization-hero">
             <div><span class="optimization-symbol"><svg><use href="#i-sparkles"></use></svg></span><div><p class="eyebrow" data-i18n="fullSuite">سوئیت کامل HOMA</p><h2 data-i18n="fullOptimization">بهینه‌سازی یک‌مرحله‌ای سرور</h2><p data-i18n="fullOptimizationText">شبکه، حافظه، امنیت، زمان‌بند و نگهبان را در یک فرایند هدایت‌شده ارتقا دهید.</p></div></div>
             <button class="button button-gold" type="button" data-action="full-optimize"><svg><use href="#i-play"></use></svg><span data-i18n="startSuite">آغاز سوئیت کامل</span></button>
+          </article>
+          <article class="suite-update-card">
+            <div class="update-emblem" aria-hidden="true"><span></span><img src="/assets/homa-mark.svg" alt=""></div>
+            <div class="suite-update-copy">
+              <p class="eyebrow">HOMA RELEASE CHANNEL</p>
+              <h3 data-i18n="updateSuite">ارتقای سوئیت HOMA</h3>
+              <p data-i18n="updateSuiteText">دریافت تازه‌ترین اسکریپت‌ها و پنل از مخزن رسمی، با حفظ نشانهٔ دسترسی و تنظیمات شما.</p>
+              <div class="update-source"><span class="status-dot online"></span><span data-i18n="officialSource">منبع رسمی</span><code>Dark-Sky07/HOMA-Optimizer · main</code></div>
+            </div>
+            <button class="button button-secondary" type="button" data-action="suite-update"><svg><use href="#i-refresh"></use></svg><span data-i18n="checkAndUpdate">به‌روزرسانی و راه‌اندازی مجدد</span></button>
           </article>
           <div class="section-heading"><h2 data-i18n="individualModules">ماژول‌های مستقل</h2><p data-i18n="individualModulesHint">پیش از اجرای تغییرات، تأیید شما دریافت می‌شود.</p></div>
           <div class="action-grid" id="optimization-grid"></div>
@@ -293,6 +324,17 @@
       <button class="button button-gold" type="submit"><svg><use href="#i-lock"></use></svg><span data-i18n="unlockPanel">ورود امن به پنل</span></button>
       <small data-i18n="authHint">نشانه در فایل /etc/homa/panel.env روی سرور ذخیره شده است.</small>
     </form>
+  </div>
+
+  <div class="restart-screen" id="restart-screen" hidden role="status" aria-live="polite">
+    <div class="restart-card">
+      <div class="restart-emblem" aria-hidden="true"><span class="restart-orbit"></span><img src="/assets/homa-mark.svg" alt=""></div>
+      <p class="eyebrow">HOMA · A NEW FLIGHT</p>
+      <h2 data-i18n="restartTitle">هما برای پروازی تازه آماده می‌شود</h2>
+      <p data-i18n="restartText">به‌روزرسانی نصب شد؛ پنل در حال راه‌اندازی مجدد و اتصال خودکار است.</p>
+      <div class="restart-progress" aria-hidden="true"><i></i></div>
+      <button class="button button-ghost" id="restart-retry" type="button" hidden><svg><use href="#i-refresh"></use></svg><span data-i18n="retryConnection">تلاش دوباره برای اتصال</span></button>
+    </div>
   </div>
 
   <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>

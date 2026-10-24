@@ -7,7 +7,7 @@
   **Rise Above Limits · سرورت را به اوج ببر**
 
   <p>
-    <img src="https://img.shields.io/badge/Release-v5.0.0-e5b45b.svg?style=for-the-badge&logo=github" alt="Release v5.0.0" />
+    <img src="https://img.shields.io/badge/Release-v5.1.0-e5b45b.svg?style=for-the-badge&logo=github" alt="Release v5.1.0" />
     <img src="https://img.shields.io/badge/Web%20Panel-FA%20%2B%20EN-72d3aa.svg?style=for-the-badge" alt="Bilingual Web Panel" />
     <img src="https://img.shields.io/badge/OS-Ubuntu%20%7C%20Debian-orange.svg?style=for-the-badge&logo=linux" alt="OS Support" />
     <img src="https://img.shields.io/badge/Runtime-Bash%20%2B%20Python%203-informational.svg?style=for-the-badge" alt="Runtime" />
@@ -23,7 +23,7 @@
               |_| |_|\___/|_|  |_/_/   \_\
 
                VPS OPTIMIZER & COMMAND CENTER
-                    Version 5.0 · Rise Above Limits
+                    Version 5.1 · Rise Above Limits
 ========================================================================
 ```
 
@@ -33,11 +33,13 @@
 
 ---
 
-## ✨ امکانات نسخهٔ ۵٫۰
+## ✨ امکانات نسخهٔ ۵٫۱
 
 ### پنل گرافیکی HOMA
 
 - **داشبورد زنده:** مصرف CPU، حافظه، دیسک، Uptime، تعداد اتصال‌ها و نمودار لحظه‌ای دریافت/ارسال شبکه.
+- **هویت بصری هما:** نشان اختصاصی در صفحهٔ اصلی، ورود و مرکز بهینه‌سازی؛ نمودار شبکه با نقشهٔ مسیر پرواز، گراف سلامت بال‌مانند و پالت طلایی/سبز الهام‌گرفته از هما.
+- **به‌روزرسانی از داخل پنل:** نصب تازه‌ترین اسکریپت‌ها و رابط از مخزن رسمی، حفظ توکن و تنظیمات، راه‌اندازی مجدد کنترل‌شدهٔ سرویس و اتصال مجدد خودکار مرورگر.
 - **سامانه‌های پرواز:** وضعیت 3x-ui/Xray، BBR، Watchdog، Scheduler، Fail2ban و Client Guard.
 - **مرکز بهینه‌سازی:** اجرای سوئیت کامل یا ماژول‌های مستقل با پیام تأیید پیش از تغییر سرور.
 - **عیب‌یابی:** ممیزی سیستم، پیش‌نمایش تغییرات شبکه، Port Scan، Cloudflare Scan، Speedtest و Iran Probe.
@@ -150,6 +152,7 @@ homa
 homa --version
 homa --help
 homa --one-click --yes       # اجرای غیرتعاملی سوئیت کامل؛ با احتیاط
+homa --update                # به‌روزرسانی کامل اسکریپت‌ها و پنل
 homa-panel                  # پنل گرافیکی
 ```
 
@@ -227,14 +230,32 @@ HOMA-Optimizer/
 
 ## 🔄 به‌روزرسانی و Rollback
 
-از داخل منوی ترمینال:
+### به‌روزرسانی از پنل گرافیکی
+
+در **مرکز بهینه‌سازی** کارت «ارتقای سوئیت HOMA» را انتخاب کنید؛ دکمهٔ طلایی Refresh در نوار بالایی نیز همین مسیر را باز می‌کند. پس از تأیید، پنل مراحل زیر را انجام می‌دهد:
+
+1. اجرای عملیات ثابت و Allowlistشدهٔ `homa-menu.sh --update --from-panel`؛ هیچ URL یا فرمان دلخواهی از مرورگر پذیرفته نمی‌شود.
+2. دریافت آخرین Release رسمی `Dark-Sky07/HOMA-Optimizer` و در صورت در دسترس نبودن آن، شاخهٔ `main` همان مخزن.
+3. نصب هم‌زمان اسکریپت‌ها و فایل‌های پنل با حفظ `/etc/homa/panel.env`، توکن دسترسی و سایر تنظیمات.
+4. ثبت نتیجهٔ عملیات و سپس Restart سرویس `homa-panel.service` پس از تأخیر کوتاه؛ رابط به‌صورت خودکار منتظر بازگشت سرویس می‌ماند و صفحه را تازه می‌کند.
+
+این عملیات به root نیاز دارد و در حالت فقط‌خواندنی مسدود است. اگر پنل خارج از systemd اجرا شود، Restart خودکار انجام نمی‌شود؛ در این حالت پس از نصب موفق، `homa-panel` را دستی راه‌اندازی مجدد کنید. توکن در خروجی عملیات به‌روزرسانی چاپ نمی‌شود.
+
+### به‌روزرسانی از ترمینال
+
+```bash
+homa --update
+# یا از داخل منو:
+homa → [u] Update complete HOMA suite
+```
+
+### بازگردانی تنظیمات
 
 ```text
-homa → [u] Update complete HOMA suite
 homa → [r] Restore / Rollback settings
 ```
 
-به‌روزرسانی، اسکریپت‌ها **و پنل گرافیکی** را با هم نصب می‌کند و توکن فعلی پنل را حفظ می‌کند. برای بازگردانی فقط تنظیمات شبکه، ماژول **Rollback network tuning** در مرکز بهینه‌سازی گرافیکی نیز موجود است.
+برای بازگردانی فقط تنظیمات شبکه، ماژول **Rollback network tuning** در مرکز بهینه‌سازی گرافیکی نیز موجود است. به‌روزرسانی برنامه جایگزین Rollback پیکربندی نیست و پیش از تغییرات عملیاتی همچنان پشتیبان‌گیری توصیه می‌شود.
 
 ---
 

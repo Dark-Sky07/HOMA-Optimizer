@@ -25,6 +25,8 @@ const translations = {
     activityTitle: "رویدادها و عملیات", activitySubtitle: "وضعیت و خروجی تمام فرایندهای این نشست پنل.", refreshList: "به‌روزرسانی فهرست", noActivityYet: "رویدادی وجود ندارد", noActivityDescription: "نخستین ممیزی یا بهینه‌سازی را اجرا کنید تا جزئیات آن اینجا ثبت شود.",
     footerSafety: "طراحی‌شده برای کنترل دقیق و عملکرد پایدار", confirmationWarning: "این عملیات تنظیمات سرور را تغییر می‌دهد. از دسترسی پایدار به سرور مطمئن باشید.", cancel: "انصراف", confirmRun: "تأیید و اجرا", backToPanel: "بازگشت به پنل",
     authText: "برای ورود به مرکز فرمان، نشانهٔ دسترسی پنل را وارد کنید.", accessToken: "نشانهٔ دسترسی", authError: "نشانهٔ دسترسی معتبر نیست.", unlockPanel: "ورود امن به پنل", authHint: "نشانه در فایل /etc/homa/panel.env روی سرور ذخیره شده است.",
+    updateSuite: "ارتقای سوئیت HOMA", updateSuiteText: "دریافت تازه‌ترین اسکریپت‌ها و پنل از مخزن رسمی، با حفظ نشانهٔ دسترسی و تنظیمات شما.", officialSource: "منبع رسمی", checkAndUpdate: "به‌روزرسانی و راه‌اندازی مجدد",
+    restartTitle: "هما برای پروازی تازه آماده می‌شود", restartText: "به‌روزرسانی نصب شد؛ پنل در حال راه‌اندازی مجدد و اتصال خودکار است.", retryConnection: "تلاش دوباره برای اتصال", updateWarning: "اسکریپت‌ها و پنل از مخزن رسمی HOMA جایگزین می‌شوند. نشانهٔ دسترسی حفظ می‌شود و پنل پس از نصب، یک بار راه‌اندازی مجدد خواهد شد.",
     live: "متصل و زنده", disconnected: "ارتباط قطع شد", coreConnected: "هستهٔ HOMA متصل است", coreDisconnected: "ارتباط با هسته برقرار نیست", excellentHealth: "وضعیت سرور عالی است", attentionHealth: "مصرف منابع نیازمند توجه است",
     controlMode: "CONTROL MODE", readOnlyMode: "READ ONLY", rootRequiredMode: "ROOT REQUIRED", coreCount: "هسته", day: "روز", hour: "ساعت", minute: "دقیقه",
     active: "فعال", inactive: "غیرفعال", failed: "خطا", unknown: "نامشخص", not_detected: "شناسایی نشد", activating: "در حال فعال‌سازی",
@@ -51,6 +53,8 @@ const translations = {
     activityTitle: "Activity & operations", activitySubtitle: "Status and output for every process in this panel session.", refreshList: "Refresh list", noActivityYet: "No activity yet", noActivityDescription: "Run your first audit or optimization to see its details here.",
     footerSafety: "Engineered for precise control and sustainable performance", confirmationWarning: "This operation changes server settings. Make sure you have a stable out-of-band connection to the server.", cancel: "Cancel", confirmRun: "Confirm & run", backToPanel: "Back to panel",
     authText: "Enter the panel access token to unlock your command center.", accessToken: "Access token", authError: "The access token is not valid.", unlockPanel: "Unlock secure panel", authHint: "The token is stored in /etc/homa/panel.env on your server.",
+    updateSuite: "Upgrade the HOMA suite", updateSuiteText: "Install the latest scripts and panel from the official repository while preserving your access token and settings.", officialSource: "Official source", checkAndUpdate: "Update & restart",
+    restartTitle: "Homa is preparing for a new flight", restartText: "The update is installed. Your panel is restarting and will reconnect automatically.", retryConnection: "Retry connection", updateWarning: "Scripts and panel files will be replaced from the official HOMA repository. Your access token is preserved, and the panel will restart once after installation.",
     live: "Live & connected", disconnected: "Connection lost", coreConnected: "HOMA core connected", coreDisconnected: "HOMA core unavailable", excellentHealth: "Server health is excellent", attentionHealth: "Resource usage needs attention",
     controlMode: "CONTROL MODE", readOnlyMode: "READ ONLY", rootRequiredMode: "ROOT REQUIRED", coreCount: "cores", day: "days", hour: "hours", minute: "min",
     active: "Active", inactive: "Inactive", failed: "Failed", unknown: "Unknown", not_detected: "Not detected", activating: "Activating",
@@ -64,6 +68,7 @@ const translations = {
 
 const actionTranslations = {
   fa: {
+    "suite-update": ["به‌روزرسانی سوئیت HOMA", "دریافت و نصب تازه‌ترین نسخه از مخزن رسمی؛ پنل پس از نصب به‌صورت خودکار راه‌اندازی مجدد می‌شود.", "۱–۳ دقیقه"],
     "full-optimize": ["بهینه‌سازی کامل سرور", "اجرای همهٔ ماژول‌های اصلی، از شبکه و سخت‌افزار تا امنیت و نگهبان.", "۱۰–۳۰ دقیقه"],
     "network-optimize": ["بهینه‌سازی شبکه و کرنل", "فعال‌سازی BBR و FQ و تنظیم بافرهای TCP برای مسیرهای پرنوسان.", "۱–۲ دقیقه"],
     "hardware-optimize": ["بهینه‌سازی سخت‌افزار", "تنظیم حافظهٔ مجازی، محدودیت فایل‌ها، journald و منابع سیستم.", "۱–۳ دقیقه"],
@@ -81,6 +86,7 @@ const actionTranslations = {
     "iran-probe": ["پایش مسیرهای اپراتور ایران", "سنجش تأخیر و از دست رفتن بسته به مقصدهای منتخب اپراتورها.", "۳۰–۹۰ ثانیه"],
   },
   en: {
+    "suite-update": ["Update HOMA suite", "Download and install the latest release from the official repository. The panel restarts automatically after installation.", "1–3 min"],
     "full-optimize": ["Full server optimization", "Run all core modules, from networking and hardware to security and watchdog.", "10–30 min"],
     "network-optimize": ["Network & kernel tuning", "Enable BBR and FQ, then tune TCP buffers for unstable network paths.", "1–2 min"],
     "hardware-optimize": ["Hardware optimization", "Tune virtual memory, file limits, journald and system resources.", "1–3 min"],
@@ -111,6 +117,10 @@ const state = {
   drawerJobId: null,
   drawerTimer: null,
   refreshTimer: null,
+  restartPollTimer: null,
+  restartRetryTimer: null,
+  restartStartedAt: 0,
+  restarting: false,
   refreshing: false,
   eventsBound: false,
   chartSamples: [],
@@ -119,7 +129,7 @@ const state = {
   root: true,
 };
 const validViews = new Set(["overview", "optimization", "diagnostics", "activity"]);
-const validIcons = new Set(["sparkles", "network", "cpu", "shield", "lock", "pulse", "clock", "archive", "rollback", "scan", "sliders", "radar", "cloud", "gauge", "signal", "activity"]);
+const validIcons = new Set(["refresh", "sparkles", "network", "cpu", "shield", "lock", "pulse", "clock", "archive", "rollback", "scan", "sliders", "radar", "cloud", "gauge", "signal", "activity"]);
 const t = (key) => translations[state.language][key] ?? translations.fa[key] ?? key;
 const actionText = (id) => actionTranslations[state.language][id] || actionTranslations.en[id] || [id, "", ""];
 
@@ -165,6 +175,7 @@ function applyLanguage() {
     else if (translations[state.language][key]) element.textContent = t(key);
   });
   $("#language-toggle span").textContent = state.language === "fa" ? "EN" : "FA";
+  $(".update-button").setAttribute("aria-label", actionText("suite-update")[0]);
   document.title = state.language === "fa" ? "HOMA · مرکز فرمان سرور" : "HOMA · Server Command Center";
   const date = new Intl.DateTimeFormat(state.language === "fa" ? "fa-IR" : "en-US", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
   $("#current-date").textContent = `${date} · HOMA`;
@@ -188,7 +199,9 @@ async function api(path, options = {}) {
     response = await fetch(path, { ...options, headers, cache: "no-store" });
   } catch (error) {
     setConnection(false);
-    throw new Error(t("connectionError"));
+    const connectionError = new Error(t("connectionError"));
+    connectionError.code = "network";
+    throw connectionError;
   }
   let payload = {};
   try { payload = await response.json(); } catch { payload = {}; }
@@ -354,7 +367,7 @@ function updateActionAvailability() {
     else if (action.mutating && state.readOnly) reason = t("readOnlyBlocked");
     else if (action.mutating && !state.root) reason = t("rootRequired");
     button.disabled = Boolean(reason);
-    button.title = reason;
+    button.title = reason || (button.dataset.action === "suite-update" ? actionText("suite-update")[0] : "");
   });
   const count = active ? 1 : 0;
   $("#job-count").hidden = !count;
@@ -381,6 +394,8 @@ async function fetchJobs() {
     state.activeJob = state.jobs.find((job) => ["queued", "running"].includes(job.status)) || null;
     renderJobs();
     updateActionAvailability();
+    const restartedUpdate = state.jobs.find((job) => job.action === "suite-update" && job.status === "succeeded" && job.restart_scheduled);
+    if (restartedUpdate) beginPanelRestart();
   } catch (error) {
     if (error.code !== "unauthorized") throw error;
   }
@@ -424,6 +439,8 @@ function requestAction(actionId) {
   $("#modal-title").textContent = name;
   $("#modal-description").textContent = description;
   $("#modal-symbol").classList.toggle("danger", Boolean(action.danger));
+  $("#modal-symbol use").setAttribute("href", actionId === "suite-update" ? "#i-refresh" : "#i-sparkles");
+  $("#modal-warning span").textContent = actionId === "suite-update" ? t("updateWarning") : t("confirmationWarning");
   $("#modal-warning").classList.remove("safe");
   $("#action-modal").hidden = false;
   window.setTimeout(() => $("#confirm-action").focus(), 40);
@@ -473,6 +490,49 @@ function closeJobDrawer() {
   $("#drawer-backdrop").hidden = true;
 }
 
+function beginPanelRestart() {
+  if (state.restarting) return;
+  state.restarting = true;
+  state.restartStartedAt = Date.now();
+  state.activeJob = null;
+  window.clearInterval(state.refreshTimer);
+  window.clearInterval(state.drawerTimer);
+  window.clearTimeout(state.restartPollTimer);
+  window.clearTimeout(state.restartRetryTimer);
+  state.refreshTimer = null;
+  state.drawerTimer = null;
+  setConnection(false);
+  $("#restart-retry").hidden = true;
+  $("#restart-screen").hidden = false;
+  state.restartPollTimer = window.setTimeout(pollPanelRestart, 8000);
+  state.restartRetryTimer = window.setTimeout(() => { $("#restart-retry").hidden = false; }, 45000);
+}
+
+async function pollPanelRestart() {
+  if (!state.restarting) return;
+  window.clearTimeout(state.restartPollTimer);
+  state.restartPollTimer = null;
+  const remaining = 8000 - (Date.now() - state.restartStartedAt);
+  if (remaining > 0) {
+    state.restartPollTimer = window.setTimeout(pollPanelRestart, remaining);
+    return;
+  }
+  const headers = { Accept: "application/json" };
+  if (state.token) headers["X-HOMA-Token"] = state.token;
+  try {
+    const response = await fetch("/api/session", { headers, cache: "no-store" });
+    if (response.ok) {
+      // A clean reload picks up the newly installed backend and static assets;
+      // sessionStorage preserves the panel token across this navigation.
+      window.location.reload();
+      return;
+    }
+  } catch {
+    // The service is expected to be unavailable briefly during restart.
+  }
+  if (state.restarting) state.restartPollTimer = window.setTimeout(pollPanelRestart, 2500);
+}
+
 async function refreshDrawerJob() {
   if (!state.drawerJobId) return;
   const requestedId = state.drawerJobId;
@@ -492,6 +552,10 @@ async function refreshDrawerJob() {
     if (nearBottom || ["queued", "running"].includes(job.status)) output.scrollTop = output.scrollHeight;
     renderJobs();
     if (!["queued", "running"].includes(job.status)) {
+      if (job.action === "suite-update" && job.status === "succeeded" && job.restart_scheduled) {
+        beginPanelRestart();
+        return;
+      }
       window.clearInterval(state.drawerTimer);
       state.drawerTimer = null;
       if (state.activeJob?.id === job.id) state.activeJob = null;
@@ -502,16 +566,27 @@ async function refreshDrawerJob() {
       }
     }
   } catch (error) {
+    const trackedJob = state.jobs.find((entry) => entry.id === requestedId);
+    if (trackedJob?.action === "suite-update" && error.code === "job_not_found") {
+      // The job registry is in memory, so its disappearance after a completed
+      // update means the new panel process is already answering requests.
+      beginPanelRestart();
+      return;
+    }
     if (error.code !== "unauthorized") {
       $("#job-output").textContent = `${t("connectionError")}\n${error.message}`;
       window.clearInterval(state.drawerTimer);
       state.drawerTimer = null;
+      if (trackedJob?.action === "suite-update" && error.code === "network") {
+        $("#job-output").textContent = `${t("connectionError")}\n${t("retryConnection")}…`;
+        state.drawerTimer = window.setTimeout(refreshDrawerJob, 2000);
+      }
     }
   }
 }
 
 async function refreshAll(manual = false) {
-  if (state.refreshing || document.hidden) return;
+  if (state.restarting || state.refreshing || document.hidden) return;
   state.refreshing = true;
   if (manual) $("#refresh-button").classList.add("is-spinning");
   try {
@@ -519,7 +594,8 @@ async function refreshAll(manual = false) {
     if (state.view === "activity" || state.activeJob) await fetchJobs();
     if (manual) toast(t("refreshed"));
   } catch (error) {
-    if (error.code !== "unauthorized" && manual) toast(error.message, "error");
+    if (state.activeJob?.action === "suite-update" && error.code === "network") beginPanelRestart();
+    if (error.code !== "unauthorized" && manual && !state.restarting) toast(error.message, "error");
   } finally {
     state.refreshing = false;
     $("#refresh-button").classList.remove("is-spinning");
@@ -645,6 +721,7 @@ function bindEvents() {
     applyLanguage();
   });
   $("#refresh-button").addEventListener("click", () => refreshAll(true));
+  $("#restart-retry").addEventListener("click", pollPanelRestart);
   $("#activity-refresh").addEventListener("click", () => fetchJobs().then(() => toast(t("refreshed"))).catch((error) => toast(error.message, "error")));
   $("#mobile-menu").addEventListener("click", openSidebar);
   $("#sidebar-close").addEventListener("click", closeSidebar);

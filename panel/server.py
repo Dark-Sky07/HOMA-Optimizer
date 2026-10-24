@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-VERSION = "5.0.0"
+VERSION = "5.1.0"
 PANEL_DIR = Path(__file__).resolve().parent
 STATIC_DIR = PANEL_DIR / "static"
 INSTALL_ROOT = PANEL_DIR.parent
@@ -41,6 +41,16 @@ MAX_OUTPUT_CHARS = 300_000
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 ACTIONS: tuple[dict[str, Any], ...] = (
+    {
+        "id": "suite-update",
+        "script": "homa-menu.sh",
+        "args": ("--update", "--from-panel"),
+        "category": "system",
+        "icon": "refresh",
+        "mutating": True,
+        "restart_on_success": True,
+        "timeout": 300,
+    },
     {
         "id": "full-optimize",
         "script": "homa-menu.sh",
@@ -470,6 +480,8 @@ class JobManager:
                 "output_chars": 0,
                 "truncated": False,
             }
+            if action.get("restart_on_success"):
+                job["restart_scheduled"] = False
             self._jobs[job_id] = job
             while len(self._jobs) > MAX_JOBS:
                 self._jobs.popitem(last=False)
@@ -487,6 +499,51 @@ class JobManager:
                 removed = job["lines"].pop(0)
                 job["output_chars"] -= len(removed)
                 job["truncated"] = True
+
+    def _schedule_panel_restart(self, job: dict[str, Any]) -> None:
+        """Restart only the systemd-managed panel after a successful update."""
+        if not os.environ.get("INVOCATION_ID"):
+            self._append(job, "\nHOMA · Update installed. Restart homa-panel to load the new backend.\n")
+            return
+        systemctl = shutil.which("systemctl")
+        if not systemctl:
+            self._append(job, "\nHOMA · Update installed. Restart homa-panel to load the new backend.\n")
+            return
+        try:
+            active = subprocess.run(
+                [systemctl, "is-active", "--quiet", "homa-panel.service"],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=3,
+                check=False,
+            ).returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            active = False
+        if not active:
+            self._append(job, "\nHOMA · Update installed. Restart homa-panel to load the new backend.\n")
+            return
+
+        with self._lock:
+            job["restart_scheduled"] = True
+        self._append(job, "\nHOMA · Update installed. Panel will restart in 6 seconds and reconnect automatically.\n")
+
+        def restart_panel() -> None:
+            try:
+                subprocess.run(
+                    [systemctl, "restart", "homa-panel.service"],
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=20,
+                    check=False,
+                )
+            except (OSError, subprocess.SubprocessError):
+                pass
+
+        restart_timer = threading.Timer(6, restart_panel)
+        restart_timer.daemon = True
+        restart_timer.start()
 
     def _run(self, job_id: str, action: dict[str, Any], script: Path) -> None:
         with self._lock:
@@ -528,6 +585,8 @@ class JobManager:
             for line in process.stdout:
                 self._append(job, line)
             exit_code = process.wait()
+            if exit_code == 0 and action.get("restart_on_success"):
+                self._schedule_panel_restart(job)
             with self._lock:
                 job["exit_code"] = exit_code
                 job["status"] = "succeeded" if exit_code == 0 else "failed"
@@ -669,7 +728,10 @@ class HomaHandler(BaseHTTPRequestHandler):
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(content)))
-        self.send_header("Cache-Control", "no-cache" if filename == "index.html" else "public, max-age=3600")
+        # Code and branding assets revalidate on every load so a panel update
+        # never leaves an old interface running against a new backend.
+        cache_control = "public, max-age=86400" if filename.endswith(".woff2") else "no-cache"
+        self.send_header("Cache-Control", cache_control)
         self.end_headers()
         if body:
             self.wfile.write(content)

@@ -31,6 +31,13 @@ class ActionContractTests(unittest.TestCase):
         self.assertEqual(action["args"], ("--one-click", "--yes"))
         self.assertTrue(action["mutating"])
 
+    def test_suite_update_is_official_noninteractive_and_restarts(self) -> None:
+        action = server.ACTION_MAP["suite-update"]
+        self.assertEqual(action["script"], "homa-menu.sh")
+        self.assertEqual(action["args"], ("--update", "--from-panel"))
+        self.assertTrue(action["mutating"])
+        self.assertTrue(action["restart_on_success"])
+
     def test_every_static_asset_exists(self) -> None:
         for filename, _ in server.STATIC_FILES.values():
             with self.subTest(asset=filename):
@@ -107,6 +114,52 @@ class JobManagerTests(unittest.TestCase):
                 self.assertEqual(result["exit_code"], 0)
                 self.assertIn("safe audit", result["output"])
                 self.assertNotIn("\x1b", result["output"])
+
+    def test_successful_update_schedules_controlled_panel_restart(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            script = Path(directory) / "homa-menu.sh"
+            script.write_text("#!/usr/bin/env bash\nprintf 'update installed\\n'\n")
+            manager = server.JobManager(read_only=False)
+            with mock.patch.object(server, "SCRIPTS_DIR", Path(directory)), \
+                 mock.patch.object(server.os, "geteuid", return_value=0), \
+                 mock.patch.object(manager, "_schedule_panel_restart") as restart:
+                job, error = manager.start("suite-update")
+                self.assertIsNone(error)
+                assert job is not None
+                deadline = time.monotonic() + 3
+                while time.monotonic() < deadline:
+                    result = manager.get(job["id"])
+                    assert result is not None
+                    if result["status"] not in {"queued", "running"}:
+                        break
+                    time.sleep(0.02)
+                self.assertEqual(result["status"], "succeeded")
+                restart.assert_called_once()
+
+    def test_manual_panel_does_not_restart_a_separate_systemd_service(self) -> None:
+        manager = server.JobManager(read_only=False)
+        job = {"lines": [], "output_chars": 0, "truncated": False, "restart_scheduled": False}
+        with mock.patch.dict(server.os.environ, {}, clear=True), \
+             mock.patch.object(server.shutil, "which") as which:
+            manager._schedule_panel_restart(job)
+        self.assertFalse(job["restart_scheduled"])
+        which.assert_not_called()
+        self.assertIn("Restart homa-panel", "".join(job["lines"]))
+
+    def test_systemd_restart_is_delayed_and_noninteractive(self) -> None:
+        manager = server.JobManager(read_only=False)
+        job = {"lines": [], "output_chars": 0, "truncated": False, "restart_scheduled": False}
+        timer = mock.Mock()
+        with mock.patch.dict(server.os.environ, {"INVOCATION_ID": "panel-test"}), \
+             mock.patch.object(server.shutil, "which", return_value="/usr/bin/systemctl"), \
+             mock.patch.object(server.subprocess, "run", return_value=mock.Mock(returncode=0)) as run, \
+             mock.patch.object(server.threading, "Timer", return_value=timer) as timer_class:
+            manager._schedule_panel_restart(job)
+        self.assertTrue(job["restart_scheduled"])
+        self.assertEqual(run.call_args.args[0], ["/usr/bin/systemctl", "is-active", "--quiet", "homa-panel.service"])
+        self.assertEqual(timer_class.call_args.args[0], 6)
+        self.assertTrue(timer.daemon)
+        timer.start.assert_called_once_with()
 
     def test_only_one_job_can_run_at_a_time(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

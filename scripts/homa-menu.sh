@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #===============================================================================
 #  homa — HOMA VPS All In One Optimizer Interactive TUI Menu
-#  Version: 5.0.0 (Graphical Command Center Edition)
+#  Version: 5.1.0 (Graphical Command Center Edition)
 #
 #  100% English Terminal Output to guarantee pristine rendering across all
 #  SSH clients, mobile terminals (Termius, JuiceSSH), and web consoles.
@@ -10,7 +10,7 @@
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
 set -u
 
-VERSION="5.0.0"
+VERSION="5.1.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [ -f "${SCRIPT_DIR}/homa-watchdog.sh" ] || SCRIPT_DIR="/opt/homa/scripts"
 [ -f "${SCRIPT_DIR}/homa-watchdog.sh" ] || SCRIPT_DIR="/opt/homa"
@@ -294,8 +294,13 @@ run_one_click() {
 }
 
 update_suite() {
+  local panel_mode="${1:-}"
+  if [ "$panel_mode" = "--from-panel" ]; then
+    export HOMA_NONINTERACTIVE=1
+  fi
   clear_screen
   printf "%s=== UPDATING HOMA TO THE LATEST RELEASE ===%s\n\n" "$C_B" "$C_0"
+  printf "Update channel: Official Dark-Sky07/HOMA-Optimizer repository\n"
   printf "Checking for the latest release on GitHub...\n"
 
   local repo_name="Dark-Sky07/HOMA-Optimizer"
@@ -325,16 +330,34 @@ update_suite() {
 
   if [ "$dl_ok" -eq 1 ] && [ -f "$tmp_dir/install.sh" ]; then
     printf "Installing the complete HOMA suite and graphical panel...\n"
-    if HOMA_NONINTERACTIVE=1 bash "$tmp_dir/install.sh" --no-launch; then
+    local install_options=(--no-launch)
+    if [ "$panel_mode" = "--from-panel" ]; then
+      # The running panel schedules its own controlled restart after the job is
+      # marked successful, so the installer must not interrupt its parent mid-log.
+      install_options+=(--no-panel)
+    fi
+    if HOMA_NONINTERACTIVE=1 bash "$tmp_dir/install.sh" "${install_options[@]}"; then
       rm -rf "$tmp_dir"
-      printf "\n%s[OK] Update completed. Restarting HOMA...%s\n" "$C_G" "$C_0"
-      sleep 2
-      exec /usr/local/bin/homa
+      if [ "$panel_mode" = "--from-panel" ]; then
+        printf "\n%s[OK] HOMA update installed successfully.%s\n" "$C_G" "$C_0"
+        return 0
+      fi
+      printf "\n%s[OK] Update completed successfully.%s\n" "$C_G" "$C_0"
+      if [ -t 0 ]; then
+        printf "Restarting the HOMA terminal suite...\n"
+        sleep 2
+        exec /usr/local/bin/homa
+      fi
+      printf "If the panel service is managed manually, restart homa-panel to load the new backend.\n"
+      return 0
     fi
   fi
 
   rm -rf "$tmp_dir"
   printf "\n%s[FAIL] Could not install the update. Please check the connection and try again.%s\n" "$C_R" "$C_0"
+  if [ "$panel_mode" = "--from-panel" ]; then
+    return 1
+  fi
   read -r -p "Press [Enter] to return..." _ || true
 }
 
@@ -666,6 +689,9 @@ case "${1:-}" in
   --one-click)
     run_one_click "${2:-}"
     ;;
+  --update)
+    update_suite "${2:-}"
+    ;;
   --version|-v)
     printf "HOMA VPS Optimizer v%s\n" "$VERSION"
     ;;
@@ -674,6 +700,7 @@ case "${1:-}" in
     printf "Usage:\n"
     printf "  homa                         Open the interactive terminal suite\n"
     printf "  homa --one-click --yes       Run full optimization without prompts\n"
+    printf "  homa --update                Update the complete HOMA suite\n"
     printf "  homa --version               Show the installed version\n"
     printf "  homa-panel                   Start the graphical control panel\n"
     ;;
