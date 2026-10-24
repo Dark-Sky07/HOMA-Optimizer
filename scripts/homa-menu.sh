@@ -1,0 +1,756 @@
+#!/usr/bin/env bash
+#===============================================================================
+#  homa — HOMA VPS All In One Optimizer Interactive TUI Menu
+#  Version: 5.2.1 (Security & Reliability Audit Edition)
+#
+#  100% English Terminal Output to guarantee pristine rendering across all
+#  SSH clients, mobile terminals (Termius, JuiceSSH), and web consoles.
+#===============================================================================
+
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+set -u
+set -o pipefail
+
+VERSION="5.2.1"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+[ -f "${SCRIPT_DIR}/homa-watchdog.sh" ] || SCRIPT_DIR="/opt/homa/scripts"
+[ -f "${SCRIPT_DIR}/homa-watchdog.sh" ] || SCRIPT_DIR="/opt/homa"
+
+# Helper to find and run modular sub-scripts safely
+run_subscript() {
+  local script_name="$1"
+  shift
+  local full_target=""
+
+  if [ -f "${SCRIPT_DIR}/${script_name}" ]; then
+    full_target="${SCRIPT_DIR}/${script_name}"
+  elif [ -f "/opt/homa/scripts/${script_name}" ]; then
+    full_target="/opt/homa/scripts/${script_name}"
+  elif [ -f "/opt/homa/${script_name}" ]; then
+    full_target="/opt/homa/${script_name}"
+  fi
+
+  if [ -n "$full_target" ] && [ -f "$full_target" ]; then
+    bash "$full_target" "$@"
+  else
+    printf "\n%s[ERROR] Script %s not found on system!%s\n" "$C_R" "$script_name" "$C_0"
+    printf "Please update by pressing 'u' or running the installer.\n\n"
+    read -r -p "Press [Enter] to continue..." _ || true
+    return 1
+  fi
+}
+
+# Color codes
+if [ -t 1 ]; then
+  C_0=$'\033[0m'
+  C_R=$'\033[0;31m'
+  C_G=$'\033[0;32m'
+  C_Y=$'\033[0;33m'
+  C_B=$'\033[1;33m'
+  C_M=$'\033[0;35m'
+  C_C=$'\033[0;36m'
+  C_W=$'\033[1;37m'
+else
+  C_0=""; C_R=""; C_G=""; C_Y=""; C_B=""; C_M=""; C_C=""; C_W=""
+fi
+
+clear_screen() {
+  [ "${HOMA_NONINTERACTIVE:-0}" = "1" ] && return 0
+  clear 2>/dev/null || printf "\033c"
+}
+
+get_panel_status() {
+  if systemctl is-active --quiet x-ui >/dev/null 2>&1; then
+    printf "%sRunning (Safe & Untouched)%s" "$C_G" "$C_0"
+  elif systemctl is-active --quiet 3x-ui >/dev/null 2>&1; then
+    printf "%sRunning (Safe & Untouched)%s" "$C_G" "$C_0"
+  elif [ -d "/usr/local/x-ui" ]; then
+    printf "%sInstalled (Inactive)%s" "$C_Y" "$C_0"
+  else
+    printf "%sNot Detected%s" "$C_W" "$C_0"
+  fi
+}
+
+get_bbr_status() {
+  local cc
+  cc="$(sysctl -n net.ipv4.tcp_congestion_control 2>/dev/null || echo "unknown")"
+  local qdisc
+  qdisc="$(sysctl -n net.core.default_qdisc 2>/dev/null || echo "unknown")"
+  if [ "$cc" = "bbr" ]; then
+    printf "%sActive (BBR + %s)%s" "$C_G" "$qdisc" "$C_0"
+  else
+    printf "%sInactive (%s)%s" "$C_Y" "$cc" "$C_0"
+  fi
+}
+
+get_operator_status() {
+  if iptables -t mangle -C POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu >/dev/null 2>&1; then
+    printf "%sActive (PMTU Clamped)%s" "$C_G" "$C_0"
+  else
+    printf "%sInactive%s" "$C_Y" "$C_0"
+  fi
+}
+
+get_instagram_status() {
+  if [ -f "/opt/homa/instagram-meta-fix.active" ] || [ -f "/opt/homa/instagram-active.flag" ] || iptables -C OUTPUT -d "157.240.0.0/16" -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable >/dev/null 2>&1; then
+    printf "%sTargeted (Safe for WARP)%s" "$C_G" "$C_0"
+  else
+    printf "%sInactive%s" "$C_Y" "$C_0"
+  fi
+}
+
+get_security_status() {
+  if systemctl is-active --quiet fail2ban >/dev/null 2>&1; then
+    printf "%sProtected (Fail2ban + Ping)%s" "$C_G" "$C_0"
+  else
+    printf "%sDefault%s" "$C_Y" "$C_0"
+  fi
+}
+
+get_watchdog_status() {
+  if systemctl is-active --quiet homa-watchdog.service >/dev/null 2>&1 || pgrep -f "homa-watchdog.sh daemon" >/dev/null 2>&1; then
+    printf "%sActive (Guarded)%s" "$C_G" "$C_0"
+  else
+    printf "%sInactive%s" "$C_Y" "$C_0"
+  fi
+}
+
+get_unban_status() {
+  if systemctl is-active --quiet homa-unban.timer >/dev/null 2>&1; then
+    printf "%sActive (Auto-Heal)%s" "$C_G" "$C_0"
+  else
+    printf "%sManual%s" "$C_Y" "$C_0"
+  fi
+}
+
+get_client_opt_status() {
+  if [ -f "/opt/homa/client-opt.active" ]; then
+    printf "%sGuarded (Permanent)%s" "$C_G" "$C_0"
+  else
+    printf "%sDefault%s" "$C_Y" "$C_0"
+  fi
+}
+
+get_scheduler_status() {
+  local state
+  state=$(cat "/opt/homa/scheduler.state" 2>/dev/null || echo "BALANCED")
+  if systemctl is-active --quiet homa-scheduler.timer 2>/dev/null; then
+    printf "%sAuto (%s)%s" "$C_G" "$state" "$C_0"
+  elif [ "$state" = "PEAK" ]; then
+    printf "%sPeak (64MB)%s" "$C_G" "$C_0"
+  else
+    printf "%sManual%s" "$C_Y" "$C_0"
+  fi
+}
+
+get_swap_status() {
+  local swap_kb
+  swap_kb="$(awk '/SwapTotal/ {print $2}' /proc/meminfo 2>/dev/null || echo "0")"
+  local swap_gb=$(( swap_kb / 1048576 ))
+  if [ "$swap_gb" -gt 0 ]; then
+    printf "%s%d GB Active%s" "$C_G" "$swap_gb" "$C_0"
+  else
+    printf "%sNone%s" "$C_Y" "$C_0"
+  fi
+}
+
+get_port_status() {
+  local port="$1"
+  local proto="$2"
+  if [ "$proto" = "tcp" ]; then
+    if ss -tlnp 2>/dev/null | grep -q ":${port} "; then
+      printf "%sIn Use%s" "$C_R" "$C_0"
+    else
+      printf "%sFREE%s" "$C_G" "$C_0"
+    fi
+  else
+    if ss -ulnp 2>/dev/null | grep -q ":${port} "; then
+      printf "%sIn Use%s" "$C_R" "$C_0"
+    else
+      printf "%sFREE%s" "$C_G" "$C_0"
+    fi
+  fi
+}
+
+draw_header() {
+  local mem_info
+  mem_info="$(free -h 2>/dev/null | awk '/Mem:/ {print $3 "/" $2}')"
+
+  printf "%s========================================================================%s\n" "$C_B" "$C_0"
+  printf "%s               _   _  ___  __  __    _%s\n" "$C_B" "$C_0"
+  printf "%s              | | | |/ _ \\|  \\/  |  / \\%s\n" "$C_B" "$C_0"
+  printf "%s              | |_| | | | | |\\/| | / _ \\%s\n" "$C_B" "$C_0"
+  printf "%s              |  _  | |_| | |  | |/ ___ \\%s\n" "$C_B" "$C_0"
+  printf "%s              |_| |_|\\___/|_|  |_/_/   \\_\\%s\n\n" "$C_B" "$C_0"
+  printf "               %sVPS OPTIMIZER & COMMAND CENTER%s\n" "$C_W" "$C_0"
+  printf "                    Version %s · Rise Above Limits\n" "$VERSION"
+  printf "%s========================================================================%s\n" "$C_B" "$C_0"
+
+  printf "  Server Panel:      %-30b  Kernel CC:     %b\n" "$(get_panel_status)" "$(get_bbr_status)"
+  printf "  Operator Fix:      %-30b  Memory:        %s\n" "$(get_operator_status)" "${mem_info:-unknown}"
+  printf "  Instagram Stream:  %-30b  Swap Memory:   %b\n" "$(get_instagram_status)" "$(get_swap_status)"
+  printf "  Watchdog Guard:    %-30b  Unban Healer:  %b\n" "$(get_watchdog_status)" "$(get_unban_status)"
+  printf "  Client Keepalive:  %-30b  Peak Scheduler: %b\n" "$(get_client_opt_status)" "$(get_scheduler_status)"
+  printf "  Security Guard:    %-30b  TCP 443:       %b\n" "$(get_security_status)" "$(get_port_status 443 tcp)"
+  printf "%s------------------------------------------------------------------------%s\n" "$C_B" "$C_0"
+}
+
+show_reality_guide() {
+  clear_screen
+  printf "%s=== RECOMMENDED VLESS + REALITY CONFIGURATION (PORT 443) ===%s\n\n" "$C_B" "$C_0"
+  printf "  Port 443 TCP is %b on your server!\n" "$(get_port_status 443 tcp)"
+  printf "  Adding an inbound on port 443 inside your 3x-ui panel provides the cleanest\n"
+  printf "  and most durable connection for Samantel, Irancell, MCI, and Rightel.\n\n"
+  
+  printf "%s  Recommended 3x-ui Inbound Settings:%s\n" "$C_W" "$C_0"
+  printf "  * Protocol:         %svless%s\n" "$C_G" "$C_0"
+  printf "  * Port:             %s443%s (Standard HTTPS port - Never blocked by Samantel)\n" "$C_G" "$C_0"
+  printf "  * Transmission:     %stcp%s\n" "$C_G" "$C_0"
+  printf "  * Security:         %sreality%s\n" "$C_G" "$C_0"
+  printf "  * uTLS:             %schrome%s (or firefox / ios)\n" "$C_G" "$C_0"
+  printf "  * Target / SNI:     %sgateway.icloud.com:443%s or %sdl.google.com:443%s\n" "$C_G" "$C_0" "$C_G" "$C_0"
+  printf "  * ShortIds:         Click 'Generate' in panel (e.g. 8-byte hex)\n"
+  printf "  * Flow:             %sxtls-rprx-vision%s\n\n" "$C_G" "$C_0"
+
+  printf "%s  Why this works for tough operators like Samantel:%s\n" "$C_Y" "$C_0"
+  printf "  1. Samantel blocks random high ports (like 8444, 8446) but permits Port 443.\n"
+  printf "  2. The PMTU Clamping fix in HOMA Optimizer prevents mobile MTU fragmentation drops.\n"
+  printf "  3. Reality uses authentic foreign TLS certificates that pass DPI inspection.\n\n"
+  
+  read -r -p "Press [Enter] to return to main menu..." _ || true
+}
+
+run_one_click() {
+  local auto_confirm="${1:-}"
+  clear_screen
+  printf "%s=== ONE-CLICK FULL SERVER OPTIMIZATION ===%s\n" "$C_B" "$C_0"
+  printf "This will run all core optimizations together safely:\n"
+  printf "  1. Network & Kernel Tuning (BBR + FQ + sysctl buffer tuning)\n"
+  printf "  2. Operator Compatibility Booster (Samantel/Mobile PMTU Clamping)\n"
+  printf "  3. Instagram & Streaming Optimizer (Targeted QUIC Rejection + fast TCP)\n"
+  printf "  4. Client Battery & Persistent Background Connection Guard\n"
+  printf "  5. Iran Peak-Hours Smart Scheduler (Auto Peak/Balanced buffer mode)\n"
+  printf "  6. Smart Anti-Pollution DNS Cache & Anycast Resolvers\n"
+  printf "  7. System & Hardware Tuning (1M ulimit, swappiness=10, 200M logs)\n"
+  printf "  8. Security Hardening (Fail2ban anti-bruteforce + ping rate limit)\n"
+  printf "  9. IP Reputation & Google Captcha Auto-Unban Healer Daemon\n"
+  printf " 10. 24/7 Panel & Xray Auto-Healing Watchdog Daemon\n"
+  printf " 11. Automated Nightly Janitor Cronjob (daily cache & log cleaner at 04:00 AM)\n"
+  printf " 12. Essential Package Maintenance (curl, jq, sqlite3, htop)\n\n"
+  
+  local confirm="n"
+  local failures=0
+  local result=0
+  if [ "$auto_confirm" = "--yes" ]; then
+    confirm="yes"
+    printf "Non-interactive confirmation received from HOMA Control Panel.\n"
+  else
+    read -r -p "Do you want to proceed? [y/N]: " confirm || confirm="n"
+  fi
+  case "$confirm" in
+    [yY]|[yY][eE][sS])
+      printf "\n[1/12] Applying kernel & network tuning...\n"
+      run_subscript "homa-boost.sh" --apply || failures=$((failures + 1))
+
+      printf "\n[2/12] Applying operator compatibility booster...\n"
+      run_subscript "homa-operator-fix.sh" --apply || failures=$((failures + 1))
+
+      printf "\n[3/12] Applying Instagram & video streaming optimizer...\n"
+      run_subscript "homa-instagram-fix.sh" --apply || failures=$((failures + 1))
+
+      printf "\n[4/12] Applying client battery & persistent background connection guard...\n"
+      run_subscript "homa-client-opt.sh" apply || failures=$((failures + 1))
+
+      printf "\n[5/12] Activating Iran peak-hours performance scheduler...\n"
+      run_subscript "homa-scheduler.sh" enable || failures=$((failures + 1))
+
+      printf "\n[6/12] Applying smart anti-pollution DNS cache...\n"
+      run_subscript "homa-dns.sh" apply || failures=$((failures + 1))
+
+      printf "\n[7/12] Applying system hardware, RAM, ulimit, & logs tuning...\n"
+      run_subscript "homa-hardware-opt.sh" --all || failures=$((failures + 1))
+
+      printf "\n[8/12] Applying security hardening & Fail2ban...\n"
+      run_subscript "homa-security.sh" --apply || failures=$((failures + 1))
+
+      printf "\n[9/12] Activating background Google/ChatGPT auto-unban daemon...\n"
+      run_subscript "homa-unban.sh" enable || failures=$((failures + 1))
+
+      printf "\n[10/12] Enabling 24/7 panel & Xray auto-healing watchdog...\n"
+      run_subscript "homa-watchdog.sh" enable || failures=$((failures + 1))
+
+      printf "\n[11/12] Scheduling nightly janitor maintenance...\n"
+      run_subscript "homa-cron.sh" --enable || failures=$((failures + 1))
+
+      printf "\n[12/12] Updating essential system packages...\n"
+      run_subscript "homa-sysupdate.sh" || failures=$((failures + 1))
+
+      if [ "$failures" -gt 0 ]; then
+        printf "\n%s[FAIL] Full optimization finished with %d failed module(s).%s\n" "$C_R" "$failures" "$C_0"
+        result=1
+      else
+        printf "\n%s[SUCCESS] Full Server Optimization Completed!%s\n" "$C_G" "$C_0"
+      fi
+      ;;
+    *)
+      printf "Aborted.\n"
+      ;;
+  esac
+  printf "\n"
+  if [ "$auto_confirm" != "--yes" ] && [ -t 0 ]; then
+    read -r -p "Press [Enter] to return to main menu..." _ || true
+  fi
+  return "$result"
+}
+
+update_suite() {
+  local panel_mode="${1:-}"
+  if [ "$panel_mode" = "--from-panel" ]; then
+    export HOMA_NONINTERACTIVE=1
+  fi
+  clear_screen
+  printf "%s=== UPDATING HOMA TO THE LATEST RELEASE ===%s\n\n" "$C_B" "$C_0"
+  printf "Update channel: Official Dark-Sky07/HOMA-Optimizer repository\n"
+  printf "Checking for the latest release on GitHub...\n"
+
+  local repo_name="Dark-Sky07/HOMA-Optimizer"
+  if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
+    printf "%s[FAIL] Either curl or wget is required for updates.%s\n" "$C_R" "$C_0"
+    return 1
+  fi
+
+  local latest_tag=""
+  if command -v curl >/dev/null 2>&1; then
+    latest_tag="$(curl -fsSI --max-time 12 "https://github.com/${repo_name}/releases/latest" 2>/dev/null | awk -F'/' '/[Ll]ocation:/ {print $NF}' | tr -d '\r\n')" || latest_tag=""
+  fi
+  if [ -n "$latest_tag" ] && ! [[ "$latest_tag" =~ ^[A-Za-z0-9._-]+$ ]]; then
+    printf "%s[WARN] Ignoring an invalid release tag received from GitHub.%s\n" "$C_Y" "$C_0"
+    latest_tag=""
+  fi
+  if [ -n "$latest_tag" ] && [ "$latest_tag" != "latest" ]; then
+    printf "Found latest release: %s%s%s\n" "$C_G" "$latest_tag" "$C_0"
+  fi
+
+  local tmp_dir
+  if ! tmp_dir="$(mktemp -d)"; then
+    printf "%s[FAIL] Could not allocate a temporary update directory.%s\n" "$C_R" "$C_0"
+    return 1
+  fi
+  local dl_ok=0
+  local package_dir=""
+  local urls=()
+  if [ -n "$latest_tag" ] && [ "$latest_tag" != "latest" ]; then
+    urls+=("https://github.com/${repo_name}/archive/refs/tags/${latest_tag}.tar.gz")
+  fi
+  urls+=("https://github.com/${repo_name}/archive/refs/heads/main.tar.gz")
+
+  local url candidate_dir
+  for url in "${urls[@]}"; do
+    # A failed archive must never be mixed with the next download attempt.
+    candidate_dir="${tmp_dir}/candidate"
+    rm -rf "$candidate_dir"
+    mkdir -p "$candidate_dir"
+    if command -v curl >/dev/null 2>&1; then
+      if curl -fsSL --max-time 120 "$url" 2>/dev/null | tar -xz -C "$candidate_dir" --strip-components=1 --no-same-owner --no-same-permissions 2>/dev/null; then
+        dl_ok=1
+      fi
+    elif wget -qO- --timeout=120 "$url" 2>/dev/null | tar -xz -C "$candidate_dir" --strip-components=1 --no-same-owner --no-same-permissions 2>/dev/null; then
+      dl_ok=1
+    fi
+    if [ "$dl_ok" -eq 1 ] && [ -f "$candidate_dir/install.sh" ] && \
+       [ -f "$candidate_dir/scripts/homa-menu.sh" ] && [ -f "$candidate_dir/panel/server.py" ]; then
+      package_dir="$candidate_dir"
+      break
+    fi
+    dl_ok=0
+  done
+
+  if [ "$dl_ok" -eq 1 ] && [ -n "$package_dir" ]; then
+    printf "Installing the complete HOMA suite and graphical panel...\n"
+    local install_options=(--no-launch)
+    if [ "$panel_mode" = "--from-panel" ]; then
+      # The running panel schedules its own controlled restart after the job is
+      # marked successful, so the installer must not interrupt its parent mid-log.
+      install_options+=(--no-panel)
+    fi
+    if HOMA_NONINTERACTIVE=1 bash "$package_dir/install.sh" "${install_options[@]}"; then
+      rm -rf "$tmp_dir"
+      if [ "$panel_mode" = "--from-panel" ]; then
+        printf "\n%s[OK] HOMA update installed successfully.%s\n" "$C_G" "$C_0"
+        return 0
+      fi
+      printf "\n%s[OK] Update completed successfully.%s\n" "$C_G" "$C_0"
+      if [ -t 0 ]; then
+        printf "Restarting the HOMA terminal suite...\n"
+        sleep 2
+        exec /usr/local/bin/homa
+      fi
+      printf "If the panel service is managed manually, restart homa-panel to load the new backend.\n"
+      return 0
+    fi
+  fi
+
+  rm -rf "$tmp_dir"
+  printf "\n%s[FAIL] Could not install the update. Please check the connection and try again.%s\n" "$C_R" "$C_0"
+  if [ "$panel_mode" = "--from-panel" ]; then
+    return 1
+  fi
+  read -r -p "Press [Enter] to return..." _ || true
+}
+
+main_menu() {
+  while true; do
+    clear_screen
+    draw_header
+
+    printf "  %s--- [ CORE & ONE-CLICK ] ---%s\n" "$C_C" "$C_0"
+    printf "  %s[1]%s  Run Read-Only Preflight Server Audit\n" "$C_G" "$C_0"
+    printf "  %s[2]%s  %s★ ONE-CLICK FULL SERVER OPTIMIZATION (All In One)%s\n\n" "$C_Y" "$C_0" "$C_W" "$C_0"
+
+    printf "  %s--- [ NETWORK & ANTI-CENSORSHIP ] ---%s\n" "$C_C" "$C_0"
+    printf "  %s[3]%s  Network & Kernel Tuning (BBR + FQ + sysctl)\n" "$C_G" "$C_0"
+    printf "  %s[4]%s  Operator Compatibility Booster (Fix Samantel / Mobile MTU)\n" "$C_G" "$C_0"
+    printf "  %s[5]%s  Optimize Instagram & Video Streaming (Safe for WARP & Google)\n" "$C_G" "$C_0"
+    printf "  %s[6]%s  Client Battery & Persistent Connection Guard (Permanent Background Stay)\n" "$C_G" "$C_0"
+    printf "  %s[7]%s  Iran Peak-Hours Smart Performance Scheduler (Auto-boost 20:00-01:30)\n" "$C_G" "$C_0"
+    printf "  %s[8]%s  Domain & Subdomain Censor Health Checker (Test subscription & CDN domains)\n" "$C_G" "$C_0"
+    printf "  %s[9]%s  Reality SNI & Clean Domain Finder (Test best domains for Reality)\n" "$C_G" "$C_0"
+    printf "  %s[10]%s Cloudflare Clean IP Scanner (Find best low-latency CDN IPs)\n" "$C_G" "$C_0"
+    printf "  %s[11]%s Smart Anti-Pollution DNS Cache (High-speed zero-poisoning Anycast)\n\n" "$C_G" "$C_0"
+
+    printf "  %s--- [ SYSTEM, HARDWARE & REPUTATION ] ---%s\n" "$C_C" "$C_0"
+    printf "  %s[12]%s System & Hardware Tuning (RAM, Ulimit 1M, Logs 200M)\n" "$C_G" "$C_0"
+    printf "  %s[13]%s Smart Swap Memory Manager (Dynamic suggestions based on RAM)\n" "$C_G" "$C_0"
+    printf "  %s[14]%s IP Reputation & Google/ChatGPT Unban Healer (Auto-Remediation)\n" "$C_G" "$C_0"
+    printf "  %s[15]%s Iran Server Sanctions & Download Booster (Docker 403, APT, GitHub)\n" "$C_G" "$C_0"
+    printf "  %s[16]%s Security & Anti-Bruteforce Hardening (Fail2ban + Ping Shield)\n" "$C_G" "$C_0"
+    printf "  %s[17]%s Panel & Disaster Recovery Backup (1-Click Backup & Restore)\n" "$C_G" "$C_0"
+    printf "  %s[18]%s Automated Nightly Janitor Cronjob (Memory & Cache Cleaner)\n" "$C_G" "$C_0"
+    printf "  %s[19]%s Update System Packages & Install Essential Tools\n\n" "$C_G" "$C_0"
+
+    printf "  %s--- [ SELF-HEALING & ALERTS ] ---%s\n" "$C_C" "$C_0"
+    printf "  %s[20]%s 24/7 Panel & Xray Core Auto-Healing Watchdog (Zero-Downtime)\n" "$C_G" "$C_0"
+    printf "  %s[21]%s Telegram Bot Instant Alerts (Crashes, Unbans, & Backups)\n\n" "$C_G" "$C_0"
+
+    printf "  %s--- [ MONITORING & DIAGNOSTICS ] ---%s\n" "$C_C" "$C_0"
+    printf "  %s[22]%s Iran Operators Latency & Packet Loss Probe (19 targets)\n" "$C_G" "$C_0"
+    printf "  %s[23]%s Iran-Foreign Tunnel & Bridge Health Doctor (Jitter & Loss)\n" "$C_G" "$C_0"
+    printf "  %s[24]%s VPS Bandwidth & Speedtest (Global & Regional Throughput)\n" "$C_G" "$C_0"
+    printf "  %s[25]%s Live Connections & Traffic Monitor (Real-time MB/s & Clients)\n" "$C_G" "$C_0"
+    printf "  %s[26]%s Port & Firewall Doctor (Scan ports & One-Click Port Opener)\n" "$C_G" "$C_0"
+    printf "  %s[27]%s Recommended VLESS-Reality Setup on Free Port 443\n\n" "$C_G" "$C_0"
+
+    printf "  %s--- [ MANAGEMENT ] ---%s\n" "$C_C" "$C_0"
+    printf "  %s[w]%s  Start HOMA Graphical Control Panel\n" "$C_G" "$C_0"
+    printf "  %s[r]%s  Restore / Rollback Settings to Original State\n" "$C_M" "$C_0"
+    printf "  %s[u]%s  Update HOMA Suite to Latest Release\n" "$C_C" "$C_0"
+    printf "  %s[0]%s  Exit\n" "$C_Y" "$C_0"
+    printf "%s------------------------------------------------------------------------%s\n" "$C_B" "$C_0"
+    
+    read -r -p "Enter your choice: " choice || choice="0"
+    case "$choice" in
+      1)
+        clear_screen
+        run_subscript "homa-preflight.sh"
+        printf "\n"
+        read -r -p "Press [Enter] to return to main menu..." _ || true
+        ;;
+      2)
+        run_one_click
+        ;;
+      3)
+        clear_screen
+        printf "%s=== Network & Kernel Optimization ===%s\n\n" "$C_B" "$C_0"
+        printf "  %s[1]%s Apply BBR + FQ + sysctl Network Buffers\n" "$C_G" "$C_0"
+        printf "  %s[2]%s Show Current Network & Kernel Status\n" "$C_G" "$C_0"
+        printf "  %s[3]%s Rollback Network Optimizations\n" "$C_M" "$C_0"
+        printf "  %s[0]%s Back to Main Menu\n\n" "$C_Y" "$C_0"
+        read -r -p "Choice [0-3]: " netchoice || netchoice="0"
+        case "$netchoice" in
+          1) clear_screen; run_subscript "homa-boost.sh" --apply; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          2) clear_screen; run_subscript "homa-boost.sh" --status; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          3) clear_screen; run_subscript "homa-boost.sh" --rollback; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          0|b|B|"") continue ;;
+          *) echo "Invalid choice."; sleep 1 ;;
+        esac
+        ;;
+      4)
+        clear_screen
+        printf "%s=== Operator Compatibility Booster (Samantel / Rightel / LTE Fix) ===%s\n\n" "$C_B" "$C_0"
+        printf "  %s[1]%s Apply PMTU Clamping (Fixes Samantel & Mobile MTU Drops)\n" "$C_G" "$C_0"
+        printf "  %s[2]%s Show Operator Booster Status\n" "$C_G" "$C_0"
+        printf "  %s[3]%s Rollback Operator Booster Rule\n" "$C_M" "$C_0"
+        printf "  %s[0]%s Back to Main Menu\n\n" "$C_Y" "$C_0"
+        read -r -p "Choice [0-3]: " opchoice || opchoice="0"
+        case "$opchoice" in
+          1) clear_screen; run_subscript "homa-operator-fix.sh" --apply; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          2) clear_screen; run_subscript "homa-operator-fix.sh" --status; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          3) clear_screen; run_subscript "homa-operator-fix.sh" --rollback; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          0|b|B|"") continue ;;
+          *) echo "Invalid choice."; sleep 1 ;;
+        esac
+        ;;
+      5)
+        clear_screen
+        printf "%s=== Instagram & Streaming Acceleration ===%s\n\n" "$C_B" "$C_0"
+        printf "  %s[1]%s Apply Instagram & Meta Video Speedup (Safe for WARP)\n" "$C_G" "$C_0"
+        printf "  %s[2]%s Show Status & Blocked Meta QUIC Packets\n" "$C_G" "$C_0"
+        printf "  %s[3]%s Rollback Instagram Acceleration\n" "$C_M" "$C_0"
+        printf "  %s[0]%s Back to Main Menu\n\n" "$C_Y" "$C_0"
+        read -r -p "Choice [0-3]: " igchoice || igchoice="0"
+        case "$igchoice" in
+          1) clear_screen; run_subscript "homa-instagram-fix.sh" --apply; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          2) clear_screen; run_subscript "homa-instagram-fix.sh" --status; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          3) clear_screen; run_subscript "homa-instagram-fix.sh" --rollback; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          0|b|B|"") continue ;;
+          *) echo "Invalid choice."; sleep 1 ;;
+        esac
+        ;;
+      6)
+        clear_screen
+        run_subscript "homa-client-opt.sh"
+        ;;
+      7)
+        clear_screen
+        run_subscript "homa-scheduler.sh"
+        ;;
+      8)
+        clear_screen
+        run_subscript "homa-domain-checker.sh"
+        ;;
+      9)
+        clear_screen
+        run_subscript "homa-sni-checker.sh"
+        printf "\n"
+        read -r -p "Press [Enter] to return to main menu..." _ || true
+        ;;
+      10)
+        clear_screen
+        run_subscript "homa-cf-scanner.sh"
+        printf "\n"
+        read -r -p "Press [Enter] to return to main menu..." _ || true
+        ;;
+      11)
+        clear_screen
+        run_subscript "homa-dns.sh"
+        ;;
+      12)
+        clear_screen
+        printf "%s=== System & Hardware Tuning ===%s\n\n" "$C_B" "$C_0"
+        printf "  %s[1]%s Apply all hardware optimizations (Ulimit 1M, VM swappiness=10, 200M logs)\n" "$C_G" "$C_0"
+        printf "  %s[2]%s Show hardware status\n" "$C_G" "$C_0"
+        printf "  %s[3]%s Rollback hardware tuning\n" "$C_M" "$C_0"
+        printf "  %s[0]%s Back to Main Menu\n\n" "$C_Y" "$C_0"
+        read -r -p "Choice [0-3]: " hwchoice || hwchoice="0"
+        case "$hwchoice" in
+          1) clear_screen; run_subscript "homa-hardware-opt.sh" --all; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          2) clear_screen; run_subscript "homa-hardware-opt.sh" --status; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          3) clear_screen; run_subscript "homa-hardware-opt.sh" --rollback; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          0|b|B|"") continue ;;
+          *) echo "Invalid choice."; sleep 1 ;;
+        esac
+        ;;
+      13)
+        clear_screen
+        run_subscript "homa-hardware-opt.sh" --swap
+        ;;
+      14)
+        clear_screen
+        run_subscript "homa-unban.sh"
+        ;;
+      15)
+        clear_screen
+        run_subscript "homa-iran-unlocker.sh"
+        ;;
+      16)
+        clear_screen
+        printf "%s=== Security & Anti-Bruteforce Hardening ===%s\n\n" "$C_B" "$C_0"
+        printf "  %s[1]%s Apply Fail2ban & ICMP Ping Shield\n" "$C_G" "$C_0"
+        printf "  %s[2]%s Show Security Status & Banned IPs\n" "$C_G" "$C_0"
+        printf "  %s[3]%s Rollback Security Rules\n" "$C_M" "$C_0"
+        printf "  %s[0]%s Back to Main Menu\n\n" "$C_Y" "$C_0"
+        read -r -p "Choice [0-3]: " secchoice || secchoice="0"
+        case "$secchoice" in
+          1) clear_screen; run_subscript "homa-security.sh" --apply; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          2) clear_screen; run_subscript "homa-security.sh" --status; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          3) clear_screen; run_subscript "homa-security.sh" --rollback; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          0|b|B|"") continue ;;
+          *) echo "Invalid choice."; sleep 1 ;;
+        esac
+        ;;
+      17)
+        clear_screen
+        printf "%s=== Panel Disaster Recovery & Backup Manager ===%s\n\n" "$C_B" "$C_0"
+        printf "  %s[1]%s Create New Panel Backup (Database & Certs)\n" "$C_G" "$C_0"
+        printf "  %s[2]%s List Existing Backups\n" "$C_G" "$C_0"
+        printf "  %s[3]%s Restore Panel Database from Backup\n" "$C_M" "$C_0"
+        printf "  %s[0]%s Back to Main Menu\n\n" "$C_Y" "$C_0"
+        read -r -p "Choice [0-3]: " bakchoice || bakchoice="0"
+        case "$bakchoice" in
+          1) clear_screen; run_subscript "homa-backup.sh" --backup; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          2) clear_screen; run_subscript "homa-backup.sh" --list; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          3) clear_screen; run_subscript "homa-backup.sh" --restore; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          0|b|B|"") continue ;;
+          *) echo "Invalid choice."; sleep 1 ;;
+        esac
+        ;;
+      18)
+        clear_screen
+        printf "%s=== Automated Nightly Memory Janitor Cronjob ===%s\n\n" "$C_B" "$C_0"
+        printf "  %s[1]%s Enable Nightly Janitor (Daily at 04:00 AM)\n" "$C_G" "$C_0"
+        printf "  %s[2]%s Run Cache & Log Cleanup Right Now\n" "$C_G" "$C_0"
+        printf "  %s[3]%s Disable Nightly Janitor\n" "$C_M" "$C_0"
+        printf "  %s[4]%s Show Janitor Status\n" "$C_G" "$C_0"
+        printf "  %s[0]%s Back to Main Menu\n\n" "$C_Y" "$C_0"
+        read -r -p "Choice [0-4]: " cronchoice || cronchoice="0"
+        case "$cronchoice" in
+          1) clear_screen; run_subscript "homa-cron.sh" --enable; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          2) clear_screen; run_subscript "homa-cron.sh" --run; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          3) clear_screen; run_subscript "homa-cron.sh" --disable; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          4) clear_screen; run_subscript "homa-cron.sh" --status; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          0|b|B|"") continue ;;
+          *) echo "Invalid choice."; sleep 1 ;;
+        esac
+        ;;
+      19)
+        clear_screen
+        run_subscript "homa-sysupdate.sh" || true
+        printf "\n"
+        read -r -p "Press [Enter] to return to main menu..." _ || true
+        ;;
+      20)
+        clear_screen
+        run_subscript "homa-watchdog.sh"
+        ;;
+      21)
+        clear_screen
+        run_subscript "homa-telegram.sh"
+        ;;
+      22)
+        clear_screen
+        run_subscript "homa-iran-probe.sh"
+        printf "\n"
+        read -r -p "Press [Enter] to return to main menu..." _ || true
+        ;;
+      23)
+        clear_screen
+        run_subscript "homa-bridge.sh"
+        ;;
+      24)
+        clear_screen
+        run_subscript "homa-speedtest.sh"
+        printf "\n"
+        read -r -p "Press [Enter] to return to main menu..." _ || true
+        ;;
+      25)
+        clear_screen
+        run_subscript "homa-monitor.sh"
+        ;;
+      26)
+        clear_screen
+        printf "%s=== Port & Firewall Doctor ===%s\n\n" "$C_B" "$C_0"
+        printf "  %s[1]%s Scan Critical VPN & Web Ports\n" "$C_G" "$C_0"
+        printf "  %s[2]%s Open a Port in Firewall (TCP/UDP)\n" "$C_G" "$C_0"
+        printf "  %s[0]%s Back to Main Menu\n\n" "$C_Y" "$C_0"
+        read -r -p "Choice [0-2]: " portchoice || portchoice="0"
+        case "$portchoice" in
+          1) clear_screen; run_subscript "homa-port-doctor.sh" --scan; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          2) clear_screen; run_subscript "homa-port-doctor.sh" --open; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          0|b|B|"") continue ;;
+          *) echo "Invalid choice."; sleep 1 ;;
+        esac
+        ;;
+      27)
+        show_reality_guide
+        ;;
+      w|W)
+        clear_screen
+        printf "%s=== HOMA GRAPHICAL CONTROL PANEL ===%s\n\n" "$C_B" "$C_0"
+        if command -v systemctl >/dev/null 2>&1 && systemctl enable --now homa-panel.service >/dev/null 2>&1; then
+          printf "%s[OK]%s HOMA panel is running at http://127.0.0.1:8787\n" "$C_G" "$C_0"
+          printf "Access token: %s\n" "$(sed -n 's/^HOMA_PANEL_TOKEN=//p' /etc/homa/panel.env 2>/dev/null | tail -n 1)"
+          printf "For remote access, use the SSH tunnel documented in README.md.\n"
+        elif command -v homa-panel >/dev/null 2>&1; then
+          printf "Start the panel with: %shoma-panel%s\n" "$C_W" "$C_0"
+          printf "Then open http://127.0.0.1:8787 in your browser.\n"
+        else
+          printf "%s[WARN]%s Panel files are not installed. Run the HOMA installer first.\n" "$C_Y" "$C_0"
+        fi
+        printf "\n"
+        read -r -p "Press [Enter] to return to main menu..." _ || true
+        ;;
+      r|R)
+        clear_screen
+        printf "%s=== ROLLBACK ALL HOMA SETTINGS ===%s\n" "$C_M" "$C_0"
+        read -r -p "Are you sure you want to restore original server settings? [y/N]: " confirm_rb || confirm_rb="n"
+        case "$confirm_rb" in
+          [yY]|[yY][eE][sS])
+            local rollback_failures=0
+            run_subscript "homa-boost.sh" --rollback || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-operator-fix.sh" --rollback || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-instagram-fix.sh" --rollback || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-client-opt.sh" rollback || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-scheduler.sh" disable || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-hardware-opt.sh" --rollback || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-security.sh" --rollback || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-cron.sh" --disable || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-dns.sh" rollback || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-unban.sh" disable || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-watchdog.sh" disable || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-iran-unlocker.sh" rollback || rollback_failures=$((rollback_failures + 1))
+            if [ "$rollback_failures" -gt 0 ]; then
+              printf "\n%s[FAIL] Rollback finished with %d failed module(s).%s\n" "$C_R" "$rollback_failures" "$C_0"
+            else
+              printf "\n%s[OK] All modifications rolled back cleanly.%s\n" "$C_G" "$C_0"
+            fi
+            ;;
+          *)
+            printf "Rollback cancelled.\n"
+            ;;
+        esac
+        printf "\n"
+        read -r -p "Press [Enter] to return to main menu..." _ || true
+        ;;
+      u|U)
+        update_suite
+        ;;
+      0|q|Q)
+        clear_screen
+        printf "Exiting HOMA VPS Optimizer. Run '%shoma%s' anytime to reopen.\n\n" "$C_G" "$C_0"
+        exit 0
+        ;;
+      *)
+        echo "Invalid choice: $choice"
+        sleep 1
+        ;;
+    esac
+  done
+}
+
+case "${1:-}" in
+  --one-click)
+    run_one_click "${2:-}"
+    ;;
+  --update)
+    update_suite "${2:-}"
+    ;;
+  --version|-v)
+    printf "HOMA VPS Optimizer v%s\n" "$VERSION"
+    ;;
+  --help|-h)
+    printf "HOMA VPS Optimizer v%s\n\n" "$VERSION"
+    printf "Usage:\n"
+    printf "  homa                         Open the interactive terminal suite\n"
+    printf "  homa --one-click --yes       Run full optimization without prompts\n"
+    printf "  homa --update                Update the complete HOMA suite\n"
+    printf "  homa --version               Show the installed version\n"
+    printf "  homa-panel                   Start the graphical control panel\n"
+    ;;
+  "")
+    main_menu
+    ;;
+  *)
+    printf "Unknown option: %s\nUse 'homa --help' for available commands.\n" "$1"
+    exit 1
+    ;;
+esac

@@ -1,167 +1,299 @@
-# 👑 OMEGA VPS Optimizer (Bidirectional Turbo Edition)
+<div align="center">
+  <img src="panel/static/assets/homa-logo.webp" width="104" height="104" alt="HOMA logo" />
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Release-v4.3.0--Turbo-blue.svg?style=for-the-badge&logo=github" alt="Release v4.3.0" />
-  <img src="https://img.shields.io/badge/OS-Ubuntu%20|%20Debian%20|%20CentOS-orange.svg?style=for-the-badge&logo=linux" alt="OS Support" />
-  <img src="https://img.shields.io/badge/Panel%20Safety-100%25%20Untouched-success.svg?style=for-the-badge&logo=shield" alt="Panel Safety" />
-  <img src="https://img.shields.io/badge/Iran%20Server-Docker%20%2B%20APT%20%2B%20GitHub%20Speedup-orange.svg?style=for-the-badge&logo=docker" alt="Iran Server Booster" />
-  <img src="https://img.shields.io/badge/Client%20Guard-Zero%20Drop%20Background-success.svg?style=for-the-badge&logo=android" alt="Client Guard" />
-  <img src="https://img.shields.io/badge/Language-100%25%20English%20TUI-informational.svg?style=for-the-badge" alt="English TUI" />
-</p>
+  # HOMA
+  ### VPS Optimizer & Graphical Command Center
+
+  **Rise Above Limits · سرورت را به اوج ببر**
+
+  <p>
+    <img src="https://img.shields.io/badge/Release-v5.2.1-e5b45b.svg?style=for-the-badge&logo=github" alt="Release v5.2.1" />
+    <img src="https://img.shields.io/badge/Web%20Panel-FA%20%2B%20EN-72d3aa.svg?style=for-the-badge" alt="Bilingual Web Panel" />
+    <img src="https://img.shields.io/badge/OS-Ubuntu%20%7C%20Debian-orange.svg?style=for-the-badge&logo=linux" alt="OS Support" />
+    <img src="https://img.shields.io/badge/Runtime-Bash%20%2B%20Python%203-informational.svg?style=for-the-badge" alt="Runtime" />
+  </p>
+</div>
 
 ```text
 ========================================================================
-                  ____  __  __ _____ ____    _   
-                 / __ \|  \/  | ____/ ___|  / \  
-                | |  | | |\/| |  _|| |  _  / _ \ 
-                | |__| | |  | | |__| |_| |/ ___ \
-                 \____/|_|  |_|_____\____/_/   \_\\
+               _   _  ___  __  __    _
+              | | | |/ _ \|  \/  |  / \
+              | |_| | | | | |\/| | / _ \
+              |  _  | |_| | |  | |/ ___ \
+              |_| |_|\___/|_|  |_/_/   \_\
 
-  __     ______  ____     ___        _   _           _             
-  \ \   / /  _ \/ ___|   / _ \ _ __ | |_(_)_ __ ___ (_)_______ _ __
-   \ \ / /| |_) \___ \  | | | | '_ \| __| | '_ ` _ \| |_  / _ \ '__|
-    \ V / |  __/ ___) | | |_| | |_) | |_| | | | | | | |/ /  __/ |  
-     \_/  |_|   |____/   \___/| .__/ \__|_|_| |_| |_|_/___\___|_|  
-                              |_|                                  
-                   All In One Server Suite
+               VPS OPTIMIZER & COMMAND CENTER
+                    Version 5.2.1 · Rise Above Limits
 ========================================================================
 ```
 
-**OMEGA VPS Optimizer** یک سوئیت مهندسی‌شده و مافوق‌حرفه‌ای برای تقویت همه‌جانبه سرورهای لینوکس (VPS) است. این پروژه طراحی شده تا بدون نیاز به سرور واسط ایران (Relay/Bridge)، با دور زدن لایه‌های اختلال و فیلترینگ شدید اپراتورها (ایرانسل، همراه اول، رایتل و سامانتل)، سرعت، پایداری و تاب‌آوری اتصالات کاربران را به بالاترین سطح ممکن برساند.
+**HOMA** یک سوئیت بهینه‌سازی سرورهای لینوکس و یک **پنل گرافیکی دوزبانهٔ فارسی/انگلیسی** است. هستهٔ پروژه ابزارهای مستقل Bash برای شبکه، کرنل، امنیت، پایداری اتصال، مانیتورینگ و نگهداری سرور را در اختیار می‌گذارد؛ داشبورد وب نیز همین ابزارها را با پایش زنده و اجرای کنترل‌شده در یک رابط حرفه‌ای یکپارچه می‌کند.
 
-> 🔒 **تضمین ۱۰۰٪ عدم تداخل با پنل (Zero-Downtime Panel Safety):**  
-> این اسکریپت به‌هیچ‌وجه به فایل دیتابیس ۳ایکس‌یوآی (`x-ui.db`)، باینری هسته Xray، یا کانفیگ‌های کاربران دست نمی‌زند، سرویس پنل را ری‌استارت نمی‌کند و ارتباط هیچ کاربر آنلاینی را قطع نمی‌کند!
-
----
-
-## ⚡ نصب سریع و خودکار آخرین نسخه (Always Latest Auto-Install)
-
-تنها با اجرای یک دستور ساده در ترمینال سرور لینوکسی خود، همیشه **آخرین نسخه رسمی منتشرشده** به همراه دستور سراسری `omega` دانلود و نصب می‌شود:
-
-```bash
-sudo bash -c "cd /tmp && rm -rf omega-pkg && mkdir -p omega-pkg && (curl -fsSL 'https://github.com/Dark-Sky07/OMEGA-VPS-Optimizer/archive/refs/heads/arena/01a0d868-omega-tunnel.tar.gz' 2>/dev/null || curl -fsSL 'https://github.com/Dark-Sky07/OMEGA-Tunnel/archive/refs/heads/arena/01a0d868-omega-tunnel.tar.gz') | tar -xz -C omega-pkg --strip-components=1 && bash omega-pkg/install.sh && rm -rf omega-pkg"
-```
-
-یا روش جایگزین با اجرای اسکریپت نصب:
-
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Dark-Sky07/OMEGA-VPS-Optimizer/arena/01a0d868-omega-tunnel/install.sh 2>/dev/null || curl -fsSL https://raw.githubusercontent.com/Dark-Sky07/OMEGA-Tunnel/arena/01a0d868-omega-tunnel/install.sh)
-```
-
-پس از نصب، در هر زمان و از هر کجای ترمینال فقط با تایپ کلمه زیر منوی قدرتمند امگا باز می‌شود:
-
-```bash
-omega
-```
+هویت بصری HOMA با الهام از پرندهٔ افسانه‌ای هما، پالت طلایی/سبز تیره و نماد اختصاصی طراحی شده است.
 
 ---
 
-## 🛡️ قرارداد ایمنی پنل و مشتریان (Safety Contract)
+## ✨ امکانات نسخهٔ ۵٫۲
 
-| مولفه حساس سرور | سیاست و عملکرد Omega Optimizer |
+### پنل گرافیکی HOMA
+
+- **داشبورد زنده:** مصرف CPU، حافظه، دیسک، Uptime، تعداد اتصال‌ها و نمودار لحظه‌ای دریافت/ارسال شبکه.
+- **هویت بصری هما:** نشان اختصاصی در صفحهٔ اصلی، ورود و مرکز بهینه‌سازی؛ نمودار شبکه با نقشهٔ مسیر پرواز، گراف سلامت بال‌مانند و پالت طلایی/سبز الهام‌گرفته از هما.
+- **به‌روزرسانی از داخل پنل:** نصب تازه‌ترین اسکریپت‌ها و رابط از مخزن رسمی، حفظ توکن و تنظیمات، راه‌اندازی مجدد کنترل‌شدهٔ سرویس و اتصال مجدد خودکار مرورگر.
+- **سامانه‌های پرواز:** وضعیت 3x-ui/Xray، BBR، Watchdog، Scheduler، Fail2ban و Client Guard.
+- **مرکز بهینه‌سازی:** اجرای سوئیت کامل یا ماژول‌های مستقل با پیام تأیید پیش از تغییر سرور.
+- **عیب‌یابی:** ممیزی سیستم، پیش‌نمایش تغییرات شبکه، Port Scan، Cloudflare Scan، Speedtest و Iran Probe.
+- **ترمینال زنده:** نمایش خروجی هر عملیات، ثبت وضعیت موفقیت/خطا و امکان کپی لاگ.
+- **دو زبان و دو جهت:** رابط فارسی RTL و انگلیسی LTR با طراحی واکنش‌گرا برای موبایل و دسکتاپ.
+- **بدون وابستگی وب:** رابط با HTML/CSS/JavaScript و بک‌اند با کتابخانهٔ استاندارد Python 3؛ بدون نیاز به Node، npm یا پایگاه داده.
+
+### هستهٔ بهینه‌سازی و مدیریت سرور
+
+- تنظیم BBR، FQ، بافرهای TCP/UDP، Keepalive و سازگاری مسیر اپراتورهای موبایل.
+- زمان‌بند ساعات اوج با ارزیابی هر ۱۵ دقیقه (۲۰:۰۰ تا ۰۱:۳۰ به وقت تهران)، بهینه‌سازی حافظه و محدودیت منابع، Smart Swap و نگهداری زمان‌بندی‌شده.
+- ابزارهای Domain/SNI، اسکن IP لبهٔ Cloudflare، DNS، Iran Unlocker و Bridge Doctor.
+- Fail2ban، Port Doctor، مانیتورینگ زنده، هشدار تلگرام و نگهبان بازیابی پنل/Xray.
+- پشتیبان‌گیری و Rollback ماژول‌های پشتیبانی‌شده از طریق منوی ترمینال.
+
+---
+
+## ⚡ نصب سریع
+
+روی سرور لینوکسی و با دسترسی root اجرا کنید:
+
+```bash
+sudo bash -c "cd /tmp && rm -rf homa-pkg && mkdir -p homa-pkg && curl -fsSL 'https://github.com/Dark-Sky07/HOMA-Optimizer/archive/refs/heads/main.tar.gz' | tar -xz -C homa-pkg --strip-components=1 && bash homa-pkg/install.sh && rm -rf homa-pkg"
+```
+
+یا با اجرای مستقیم نصب‌کننده:
+
+```bash
+sudo bash <(curl -fsSL https://raw.githubusercontent.com/Dark-Sky07/HOMA-Optimizer/main/install.sh)
+```
+
+نصب‌کننده این موارد را آماده می‌کند:
+
+| مؤلفه | مسیر / دستور |
 |---|---|
-| **دیتابیس پنل (`/etc/x-ui/x-ui.db`)** | **کاملاً دست‌نخورده.** تمام داده‌های امگا در دایرکتوری مستقل `/opt/omega-boost` ذخیره می‌شوند. |
-| **هسته Xray (`/usr/local/x-ui/bin`)** | **بدون تغییر و جایگزینی.** هسته رسمی پنل هرگز آپگرید اجباری یا بازنویسی نمی‌شود. |
-| **کاربران آنلاین (Active Clients)** | **بدون قطعی.** هیچ دستوری نیاز به ری‌استارت پنل ندارد. سشن کاربران پایدار می‌ماند. |
-| **اتصالات WireGuard و WARP** | **محافظت‌شده.** بر خلاف اسکریپت‌های غیراستاندارد، پورت UDP 443 به صورت عمومی بلاک نمی‌شود تا اینترفیس‌های WARP از کار نیفتند. |
-| **فایروال سرور** | **قوانین هدفمند با Rollback تمیز.** تغییرات در جدول `mangle` ثبت شده و با ۱ کلیک قابل بازگشت است. |
+| فایل‌های HOMA | `/opt/homa` |
+| ماژول‌های Bash | `/opt/homa/scripts` |
+| پنل گرافیکی | `/opt/homa/panel` |
+| منوی ترمینال | `homa` |
+| اجرای دستی پنل | `homa-panel` |
+| سرویس پنل | `homa-panel.service` |
+| تنظیمات و توکن پنل | `/etc/homa/panel.env` |
 
----
-
-## 🚀 نقشه کامل امکانات (۲۷ ابزار اختصاصی در یک منو)
-
-```text
-  --- [ CORE & ONE-CLICK ] ---
-  [1]  Run Read-Only Preflight Server Audit
-  [2]  ★ ONE-CLICK FULL SERVER OPTIMIZATION (All In One)
-
-  --- [ NETWORK & ANTI-CENSORSHIP ] ---
-  [3]  Network & Kernel Tuning (BBR + FQ + 64MB Buffers + Client Upload Turbo)
-  [4]  Operator Compatibility Booster (Fix Samantel / Mobile PMTU Clamping)
-  [5]  Optimize Instagram & Video Streaming (Safe for WARP & Google)
-  [6]  Client Battery & Persistent Connection Guard (Permanent Background Stay)
-  [7]  Iran Peak-Hours Smart Performance Scheduler (Auto-boost 20:00-01:30)
-  [8]  Domain & Subdomain Censor Health Checker (Test subscription & CDN domains)
-  [9]  Reality SNI & Clean Domain Finder (Test best domains for Reality)
-  [10] Cloudflare Clean IP Scanner (Find best low-latency CDN IPs)
-  [11] Smart Anti-Pollution DNS Cache (High-speed zero-poisoning Anycast)
-
-  --- [ SYSTEM, HARDWARE & REPUTATION ] ---
-  [12] System & Hardware Tuning (RAM, Ulimit 1M, Logs 200M)
-  [13] Smart Swap Memory Manager (Dynamic suggestions based on RAM)
-  [14] IP Reputation & Google/ChatGPT Unban Healer (Auto-Remediation)
-  [15] Iran Server Sanctions & Download Booster (Fix Docker 403, APT, GitHub)
-  [16] Security & Anti-Bruteforce Hardening (Fail2ban + Ping Shield)
-  [17] Panel & Disaster Recovery Backup (1-Click Backup & Restore)
-  [18] Automated Nightly Janitor Cronjob (Memory & Cache Cleaner)
-  [19] Update System Packages & Install Essential Tools
-
-  --- [ SELF-HEALING & ALERTS ] ---
-  [20] 24/7 Panel & Xray Core Auto-Healing Watchdog (Zero-Downtime)
-  [21] Telegram Bot Instant Alerts (Crashes, Unbans, & Backups)
-
-  --- [ MONITORING & DIAGNOSTICS ] ---
-  [22] Iran Operators Latency & Packet Loss Probe (19 targets across MCI/Irancell/ADSL)
-  [23] Iran-Foreign Tunnel & Bridge Health Doctor (Jitter & Packet Loss)
-  [24] VPS Bandwidth & Speedtest (Global & Regional Throughput)
-  [25] Live Connections & Traffic Monitor (Real-time MB/s & Clients)
-  [26] Port & Firewall Doctor (Scan ports & One-Click Port Opener)
-  [27] Recommended VLESS-Reality Setup on Free Port 443
-
-  --- [ MANAGEMENT ] ---
-  [r]  Restore / Rollback Settings to Original State
-  [u]  Update Omega Suite to Latest Release
-  [0]  Exit
-```
-
----
-
-## 🔬 بررسی عمیق شاهکارهای فنی امگا
-
-### ۱. محافظت از باتری و پایداری دائمی اتصال در پس‌زمینه (`omega-client-opt.sh`) 📱🔋
-- **مشکل شایع:** اپراتورهای موبایل در ایران (ایرانسل و همراه اول) جدول NAT تهاجمی دارند و بعد از ۶۰ الی ۱۲۰ ثانیه بی‌تحرکی گوشی، اتصال سوکت را می‌بندند که باعث فریز شدن وی‌پی‌ان در پس‌زمینه می‌شود.
-- **تضمین امگا:** سرور پالس‌های نامحسوس Keepalive در فواصل ۱۲۰ ثانیه می‌فرستد تا جدول NAT اپراتور هرگز منقضی نشود.  
-- **تضمین قطع‌نشدن:** کانکشن کاربر **تا زمانی که خودش دستی قطع نکند، تا ابد باز و زنده می‌ماند** و هم‌زمان با الگوریتم FQ Pacing از روشن ماندن بیهوده آنتن رادیویی گوشی و مصرف باتری جلوگیری می‌کند.
-
-### ۲. زمان‌بند هوشمند ساعات اوج فیلترینگ ایران (`omega-scheduler.sh`) ⏰🌙
-- در ساعات اوج فیلترینگ در ایران (۲۰:۰۰ تا ۰۱:۳۰ به وقت تهران)، سرور به صورت خودکار به **حالت پیک بافرهای ۶۴ مگابایتی و ارسال مجدد سریع TCP** ارتقا می‌یابد تا ریزش پکت‌ها جبران شود و در ساعات آرام روز مجدداً به مصرف بهینه برمی‌گردد.
-
-### ۳. شتاب‌دهنده سرور ایران، رفع تحریم داکر و مخازن (`omega-iran-unlocker.sh`) 🇮🇷⚡
-- **رفع خطای ۴۰۳ داکر (Docker Hub):** تزریق خودکار میرورهای داخلی و ضدتحریم معتبر (`arvancloud`, `iranserver`, `registry.docker.ir`) در `/etc/docker/daemon.json` بدون نیاز به وی‌پی‌ان یا پراکسی دستی.
-- **شتاب‌دهنده مخازن APT با سرعت ۱۰۰ مگابایت بر ثانیه:** تعویض هوشمند سرورهای آپدیت کند اوبونتو/دبیان با پرسرعت‌ترین سرورهای میرور داخلی ایران (کاهش زمان `apt update` و `apt upgrade` به زیر ۱۰ ثانیه).
-- **رفع آلودگی دی‌ان‌اس و شتاب‌دهنده گیت‌هاب:** تزریق مستقیم آی‌پی‌های Anycast پاک در `/etc/hosts` برای حل فیلترینگ و پویزن بودن `raw.githubusercontent.com` و است‌های ریلیز گیت‌هاب.
-- **دی‌ان‌اس ضدتحریم (شکن و ۴۰۳):** تنظیم خودکار Anycastهای تحریم‌شکن برای دانلود روان پکیج‌های پایتون، نود، داکر و گوگل کلود.
-
-### ۴. سگ نگهبان هوشمند ۲۴/۷ پنل و هسته اشعه (`omega-watchdog.sh`) 🐕
-- در صورت بروز کمبود حافظه یا حملات فیلترینگ که منجر به توقف ناگهانی پنل ۳ایکس‌یوآی یا هسته Xray شود، سگ نگهبان در کمتر از ۳ ثانیه سرویس را بدون نیاز به حضور ادمین زنده می‌کند.
-
-### ۵. آنلاکر خودکار گوگل و چت‌جی‌پی‌تی (`omega-unban.sh`) 🤖🔓
-- تست استاندارد با اندپوینت‌های رسمی OpenAI (`api.openai.com/v1/models`) و اولویت استاندارد IPv4 در `/etc/gai.conf` برای حل ریشه‌ای ربات‌سنج گوگل.
-- امگا با اعمال قانون هوشمند `--clamp-mss-to-pmtu` در جدول `POSTROUTING`، سقف اندازه پکت‌های TCP را دقیقاً مطابق با سقف مجاز مسیر کلاینت تراز می‌کند و مشکل فریز شدن یا لود نشدن کانفیگ‌ها را ۱۰۰٪ روی سرور حل می‌کند.
-
-### ۴. شتاب‌دهنده ویدیو و اینستاگرام سازگار با وارپ (`omega-instagram-fix.sh`) 📸
-- برخلاف اسکریپت‌های سنتی که کل پورت UDP 443 را می‌بندند و باعث قطعی WireGuard و Cloudflare WARP می‌شوند، امگا لیست دقیق ساب‌نت‌های رسمی شرکت متا (ASN 32934 / Meta CIDRs) را در یک `ipset` سخت‌افزاری ایزوله می‌کند.
-- فقط پروتکل مسدودشده QUIC در مسیر اینستاگرام به TCP پرسرعت هدایت می‌شود، در حالی که سرویس‌های گوگل، هوش مصنوعی، و WARP به حداکثر سرعت نامحدود دسترسی دارند.
-
-### ۵. اسکنر هوشمند آی‌پی تمیز کلودفلر (`omega-cf-scanner.sh`) ☁️
-- اسکن لحظه‌ای و اندازه‌گیری تأخیر (TCP Latency) روی رنج‌های طلایی کلودفلر برای اینباندهای WebSocket / CDN بدون نیاز به تغییر سرور.
-
-### ۶. سیستم هشدار و مانیتورینگ زنده تلگرام (`omega-telegram.sh`) 📱
-- اتصال مستقیم با توکن ربات تلگرام و Chat ID برای دریافت هشدار در هنگام ری‌استارت هسته، خطاهای امنیتی، و موفقیت بکاپ‌های دوره‌ای.
-
----
-
-## 🔄 بازگردانی تغییرات به حالت اولیه (Rollback Guarantee)
-
-شما در هر زمان می‌توانید با زدن کلید **`r`** در منوی اصلی، تمام قوانین شبکه، فایروال و تنظیمات کرنل را دقیقاً به حالت خام کارخانه سرور بازگردانید:
+گزینه‌های نصب:
 
 ```bash
-omega -> [r] Restore / Rollback Settings
+sudo bash install.sh --no-launch   # بدون باز کردن خودکار منوی ترمینال
+sudo bash install.sh --no-panel    # بدون راه‌اندازی خودکار سرویس پنل
 ```
 
 ---
 
-## 🤝 لایسنس و حقوق استفاده
+## 🖥️ ورود به پنل گرافیکی
 
-این پروژه تحت لایسنس MIT منتشر شده و توسعه آن برای کمک به جامعه ادمین‌های سرور و دسترسی به اینترنت آزاد و پرسرعت انجام گرفته است.  
-توسعه‌یافته با ❤️ برای آزادی اطلاعات.
+پنل به‌صورت پیش‌فرض فقط روی آدرس امن محلی `127.0.0.1:8787` اجرا می‌شود و توکن دسترسی تصادفی می‌گیرد.
+
+### مشاهدهٔ توکن و وضعیت سرویس
+
+```bash
+sudo systemctl status homa-panel
+sudo cat /etc/homa/panel.env
+```
+
+### اتصال امن از سیستم خودتان با SSH Tunnel
+
+```bash
+ssh -L 8787:127.0.0.1:8787 USER@SERVER
+```
+
+سپس در مرورگر باز کنید:
+
+```text
+http://127.0.0.1:8787
+```
+
+توکن نمایش‌داده‌شده در پایان نصب یا مقدار `HOMA_PANEL_TOKEN` را وارد کنید. توکن فقط در Session Storage همان تب مرورگر نگهداری می‌شود.
+
+### اجرای دستی و مدیریت سرویس
+
+```bash
+sudo homa-panel                       # اجرای مستقیم با تنظیمات /etc/homa/panel.env
+sudo systemctl restart homa-panel    # راه‌اندازی دوباره
+sudo systemctl stop homa-panel       # توقف پنل
+sudo journalctl -u homa-panel -f     # مشاهدهٔ لاگ سرویس
+```
+
+> **هشدار امنیتی:** برای دسترسی مستقیم از اینترنت، مقدار `HOMA_PANEL_HOST=0.0.0.0` را فقط همراه با فایروال، توکن قوی و ترجیحاً HTTPS از طریق Reverse Proxy تنظیم کنید. باز کردن پنل مدیریتی بدون TLS روی اینترنت توصیه نمی‌شود.
+
+### حالت فقط‌خواندنی
+
+برای مانیتورینگ بدون اجازهٔ تغییر تنظیمات:
+
+```bash
+sudo homa-panel --read-only
+```
+
+در این حالت ابزارهای تشخیصی فقط‌خواندنی در دسترس‌اند و همهٔ عملیات تغییردهندهٔ سرور در بک‌اند مسدود می‌شوند؛ صرفاً مخفی شدن دکمه در رابط کافی نیست.
+
+روی رابط غیرمحلی، حالت فقط‌خواندنی نیز به‌صورت پیش‌فرض به توکن نیاز دارد. اجرای عمومی بدون توکن فقط برای demo ایزوله و با opt-in صریح و Allowlist مربوط به Host ممکن است:
+
+```bash
+sudo homa-panel --host 0.0.0.0 --read-only \
+  --allow-public-read-only --allowed-host demo.example.com
+```
+
+این حالت برای production توصیه نمی‌شود. همهٔ درخواست‌ها، از جمله صفحهٔ اصلی و Session API، با Host نامعتبر رد می‌شوند تا مسیر DNS rebinding به پنل محلی بسته بماند. برای چند hostname می‌توانید `--allowed-host` را تکرار کنید یا `HOMA_PANEL_ALLOWED_HOSTS` را با مقادیر جداشده با کاما تنظیم کنید.
+
+---
+
+## 🧭 منوی ترمینال
+
+```bash
+homa
+```
+
+گزینه‌های تکمیلی:
+
+```bash
+homa --version
+homa --help
+homa --one-click --yes       # اجرای غیرتعاملی سوئیت کامل؛ با احتیاط
+homa --update                # به‌روزرسانی کامل اسکریپت‌ها و پنل
+homa-panel                  # پنل گرافیکی
+```
+
+نقشهٔ ابزارهای اصلی منو:
+
+```text
+CORE
+ [1]  Read-only preflight audit
+ [2]  One-click full optimization
+
+NETWORK & CONNECTIONS
+ [3]  BBR + FQ + kernel/network tuning
+ [4]  Mobile operator compatibility
+ [5]  Instagram & video streaming optimizer
+ [6]  Client persistent-connection guard
+ [7]  Iran peak-hours scheduler
+ [8]  Domain & subdomain health checker
+ [9]  Reality SNI analyzer
+ [10] Cloudflare clean IP scanner
+ [11] Smart anti-pollution DNS
+
+SYSTEM & PROTECTION
+ [12] Hardware/RAM/limits tuning       [13] Smart swap manager
+ [14] IP reputation healer             [15] Iran download booster
+ [16] Fail2ban & security hardening    [17] Backup & recovery
+ [18] Nightly maintenance              [19] System package update
+ [20] Panel/Xray watchdog              [21] Telegram alerts
+
+DIAGNOSTICS & MANAGEMENT
+ [22] Iran operator probe              [23] Bridge health doctor
+ [24] Bandwidth speed test             [25] Live traffic monitor
+ [26] Port & firewall doctor           [27] VLESS-Reality guide
+ [w]  Start graphical panel            [r]  Rollback settings
+ [u]  Update complete HOMA suite       [0]  Exit
+```
+
+---
+
+## 🛡️ قرارداد ایمنی و کنترل دسترسی
+
+| مؤلفه | سیاست HOMA |
+|---|---|
+| **دیتابیس 3x-ui** | ماژول‌های بهینه‌سازی شبکه و کرنل `x-ui.db` را تغییر نمی‌دهند. بازیابی نسخهٔ پشتیبان فقط با انتخاب صریح Restore انجام می‌شود. |
+| **هستهٔ Xray** | HOMA باینری رسمی Xray یا کانفیگ Inbound کاربران را جایگزین نمی‌کند. |
+| **ری‌استارت پنل** | بهینه‌سازی‌های شبکه به ری‌استارت پنل نیاز ندارند. Watchdog فقط پس از تشخیص توقف سرویس و برای بازیابی آن اقدام می‌کند. |
+| **فایروال و شبکه** | تغییرات از ماژولهای مشخص انجام می‌شوند و مسیرهای Rollback مربوط به آن‌ها در منو وجود دارد. پیش از کار عملی، نسخهٔ پشتیبان بگیرید. |
+| **اجرای دستور از وب** | API فقط یک Allowlist ثابت از اسکریپت‌ها و آرگومان‌ها را قبول می‌کند؛ دستور Shell دلخواه از مرورگر پذیرفته نمی‌شود. |
+| **احراز هویت** | توکن در `/etc/homa/panel.env` با مجوز `600` نگهداری می‌شود و مقایسهٔ آن Constant-Time است. |
+| **CSRF / XSS** | درخواست‌های تغییر به Header مخصوص Same-Origin و تأیید صریح نیاز دارند؛ CSP و Security Headerها نیز فعال‌اند. |
+| **دسترسی root** | عملیات تغییردهنده فقط زمانی اجرا می‌شوند که سرویس پنل با root در حال اجرا باشد. مانیتورینگ بدون root نیز ممکن است. |
+| **Host و Request Framing** | پنل محلی بدون توکن فقط Hostهای loopback را می‌پذیرد؛ Demo عمومی به Allowlist صریح نیاز دارد. Body غیرمنتظره، Chunked encoding و Content-Length تکراری رد می‌شوند. |
+| **مهلت عملیات** | عملیات وقت‌گیر ابتدا با SIGTERM و سپس با SIGKILL به کل Process Group متوقف می‌شوند تا Child سرکوب‌نشده باقی نماند. |
+| **بکاپ و Telegram** | دایرکتوری بکاپ `700` و آرشیوها/تنظیمات حساس `600` هستند. Restore ورودی عددی را Validate می‌کند و Telegram config هرگز به‌عنوان Shell اجرا نمی‌شود. |
+
+---
+
+## 🗂️ ساختار پروژه
+
+```text
+HOMA-Optimizer/
+├── install.sh                  # نصب‌کنندهٔ کامل
+├── scripts/
+│   ├── homa-menu.sh            # منوی ترمینال و سوئیت یک‌کلیکی
+│   ├── homa-boost.sh           # شبکه و کرنل
+│   ├── homa-watchdog.sh        # نگهبان پنل و Xray
+│   └── ...                     # ماژول‌های مستقل HOMA
+└── panel/
+    ├── server.py               # وب‌سرور، Telemetry و API امن
+    ├── homa-panel.service      # سرویس systemd
+    └── static/
+        ├── index.html          # ساختار داشبورد
+        ├── styles.css          # هویت بصری و Responsive UI
+        ├── app.js              # زبان، نمودار، عملیات و Live Jobs
+        └── assets/             # لوگو، الگو و تصویر اختصاصی هما
+```
+
+---
+
+## 🔄 به‌روزرسانی و Rollback
+
+### به‌روزرسانی از پنل گرافیکی
+
+در **مرکز بهینه‌سازی** کارت «ارتقای سوئیت HOMA» را انتخاب کنید؛ دکمهٔ طلایی Refresh در نوار بالایی نیز همین مسیر را باز می‌کند. پس از تأیید، پنل مراحل زیر را انجام می‌دهد:
+
+1. اجرای عملیات ثابت و Allowlistشدهٔ `homa-menu.sh --update --from-panel`؛ هیچ URL یا فرمان دلخواهی از مرورگر پذیرفته نمی‌شود.
+2. دریافت آخرین Release رسمی `Dark-Sky07/HOMA-Optimizer` و در صورت در دسترس نبودن آن، شاخهٔ `main` همان مخزن.
+3. نصب هم‌زمان اسکریپت‌ها و فایل‌های پنل با حفظ `/etc/homa/panel.env`، توکن دسترسی و سایر تنظیمات؛ هر دانلود در دایرکتوری تازه انجام می‌شود و Assetهای قدیمیِ حذف‌شده از release باقی نمی‌مانند.
+4. ثبت نتیجهٔ عملیات و سپس Restart سرویس `homa-panel.service` پس از تأخیر کوتاه؛ رابط به‌صورت خودکار منتظر بازگشت سرویس می‌ماند و صفحه را تازه می‌کند.
+
+این عملیات به root نیاز دارد و در حالت فقط‌خواندنی مسدود است. اگر پنل خارج از systemd اجرا شود، Restart خودکار انجام نمی‌شود؛ در این حالت پس از نصب موفق، `homa-panel` را دستی راه‌اندازی مجدد کنید. توکن در خروجی عملیات به‌روزرسانی چاپ نمی‌شود.
+
+### به‌روزرسانی از ترمینال
+
+```bash
+homa --update
+# یا از داخل منو:
+homa → [u] Update complete HOMA suite
+```
+
+### بازگردانی تنظیمات
+
+```text
+homa → [r] Restore / Rollback settings
+```
+
+برای بازگردانی فقط تنظیمات شبکه، ماژول **Rollback network tuning** در مرکز بهینه‌سازی گرافیکی نیز موجود است. به‌روزرسانی برنامه جایگزین Rollback پیکربندی نیست و پیش از تغییرات عملیاتی همچنان پشتیبان‌گیری توصیه می‌شود.
+
+---
+
+## ✅ بررسی سلامت سورس
+
+```bash
+# Syntax همهٔ اسکریپت‌ها
+for script in install.sh scripts/*.sh; do bash -n "$script" || exit 1; done
+
+# بک‌اند و تست‌های آن
+python3 -m unittest discover -s panel -p 'test_*.py' -v
+
+# JavaScript، در صورت وجود Node روی سیستم توسعه
+node --check panel/static/app.js
+```
+
+---
+
+## 🏷️ نسخه‌گذاری و انتشار
+
+HOMA از [Semantic Versioning](https://semver.org/) پیروی می‌کند. **هر تغییر با شمارهٔ نسخهٔ جدید، یک ورودی در [CHANGELOG.md](CHANGELOG.md) و یک GitHub Release جداگانه منتشر می‌شود**: افزایش قابلیت با نسخهٔ Minor، رفع اشکال با Patch و تغییر ناسازگار با Major. فهرست نسخه‌ها در [صفحهٔ Releases](https://github.com/Dark-Sky07/HOMA-Optimizer/releases) نگهداری می‌شود.
+
+---
+
+## 🤝 لایسنس
+
+این پروژه تحت لایسنس MIT و برای کمک به جامعهٔ مدیران سرور و دسترسی به اینترنت آزاد توسعه داده می‌شود.
+
+**HOMA · Rise Above Limits.**

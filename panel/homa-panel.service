@@ -1,0 +1,22 @@
+[Unit]
+Description=HOMA Graphical VPS Command Center
+Documentation=https://github.com/Dark-Sky07/HOMA-Optimizer
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/homa
+EnvironmentFile=-/etc/homa/panel.env
+ExecStart=/usr/bin/python3 /opt/homa/panel/server.py
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+LimitNOFILE=65536
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=homa-panel
+
+[Install]
+WantedBy=multi-user.target

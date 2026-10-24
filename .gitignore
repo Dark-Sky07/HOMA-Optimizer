@@ -1,0 +1,16 @@
+# Local visual/browser test artifacts
+.arena/
+
+# Python bytecode and local test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# OS and editor files
+.DS_Store
+*.swp
+*~
+
+# Local HOMA runtime data (never commit tokens or backups)
+panel.env
+*.log
