@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a1112">
+  <meta name="description" content="HOMA — professional Linux VPS optimization and monitoring control panel">
+  <title>HOMA · Server Command Center</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/assets/vazirmatn-arabic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/vazirmatn-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <svg class="svg-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 21v-7m0-4V3m8 18v-9m0-4V3m8 18v-5m0-4V3M1 14h6m2-6h6m2 8h6"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7 9 3 3-3 3m6 0h4"/></symbol>
+    <symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l2.5-7 5 14 2.5-7h4"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 8a7 7 0 0 1 11.5-1L20 12M4 12l2.4 5a7 7 0 0 0 11.5-1"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+    <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 6.5h.01M7 17.5h.01M11 6.5h6M11 17.5h6"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 1v3m6-3v3M9 20v3m6-3v3M20 9h3m-3 6h3M1 9h3m-3 6h3M10 10h4v4h-4z"/></symbol>
+    <symbol id="i-memory" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10v4m5-4v4m5-4v4M7 3v3m5-3v3m5-3v3M7 18v3m5-3v3m5-3v3"/></symbol>
+    <symbol id="i-disk" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v7c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12v7c0 1.7 3.6 3 8 3s8-1.3 8-3v-7"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.1 1.1M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.1-1.1"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m-5 5 5-5 5 5M4 20h16"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.7 2.5 18a2 2 0 0 0 1.8 3h15.4a2 2 0 0 0 1.8-3L13.7 3.7a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4m0 4h.01"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="m12 3 1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3ZM5 15l.8 2.2L8 18l-2.2.8L5 21l-.8-2.2L2 18l2.2-.8L5 15Zm14-2 1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3Z"/></symbol>
+    <symbol id="i-network" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="16" y="16" width="6" height="6" rx="1"/><path d="M12 8v4M5 16v-2h14v2M5 12h14"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.4 8 8 9 4.6-1 8-4 8-9V6l-8-3Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2"/></symbol>
+    <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l2-6 4 12 2-6h6"/></symbol>
+    <symbol id="i-archive" viewBox="0 0 24 24"><path d="M4 7v14h16V7M3 3h18v4H3zM9 11h6"/></symbol>
+    <symbol id="i-rollback" viewBox="0 0 24 24"><path d="M3 8v5h5M4 13a8 8 0 1 0 2-7l-3 3"/></symbol>
+    <symbol id="i-scan" viewBox="0 0 24 24"><path d="M8 3H4a1 1 0 0 0-1 1v4m13-5h4a1 1 0 0 1 1 1v4M8 21H4a1 1 0 0 1-1-1v-4m13 5h4a1 1 0 0 0 1-1v-4M7 12h10"/></symbol>
+    <symbol id="i-radar" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="m12 12 6-6M12 3v2M3 12h2"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M6 18a4 4 0 0 1-.5-8A6 6 0 0 1 17 8a5 5 0 0 1 1 10H6Z"/><path d="m9 14 3 3 4-5"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4 17a9 9 0 1 1 16 0M12 12l4-4"/><path d="M5 20h14"/></symbol>
+    <symbol id="i-signal" viewBox="0 0 24 24"><path d="M4 20v-3m5 3v-7m5 7V8m5 12V4"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7V5Z"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10h.01"/></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6m0-6-9 9M18 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6"/></symbol>
+    <symbol id="i-feather" viewBox="0 0 24 24"><path d="M20 4c-5-2-11 2-13 7-1.3 3.1-.5 5.5 0 7l-4 3M20 4c2 5-1 11-6 13-2.4 1-4.5.8-7 1M7 18l8-8M11 14h5m-4-4h5"/></symbol>
+  </svg>
+
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+
+  <div class="app-shell" id="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="HOMA navigation">
+      <div class="brand-row">
+        <a class="brand" href="#overview" data-view-link="overview" aria-label="HOMA dashboard">
+          <span class="brand-mark"><img src="/assets/homa-mark.svg" alt=""></span>
+          <span class="brand-type"><strong>HOMA</strong><small>SERVER COMMAND</small></span>
+        </a>
+        <button class="icon-button sidebar-close" id="sidebar-close" type="button" aria-label="Close menu">
+          <svg><use href="#i-close"></use></svg>
+        </button>
+      </div>
+
+      <div class="nav-caption" data-i18n="workspace">فضای کاری</div>
+      <nav class="main-nav">
+        <button class="nav-item active" type="button" data-view="overview">
+          <svg><use href="#i-grid"></use></svg><span data-i18n="navOverview">داشبورد</span><span class="nav-active-dot"></span>
+        </button>
+        <button class="nav-item" type="button" data-view="optimization">
+          <svg><use href="#i-sliders"></use></svg><span data-i18n="navOptimization">مرکز بهینه‌سازی</span><span class="nav-active-dot"></span>
+        </button>
+        <button class="nav-item" type="button" data-view="diagnostics">
+          <svg><use href="#i-terminal"></use></svg><span data-i18n="navDiagnostics">عیب‌یابی و آزمون</span><span class="nav-active-dot"></span>
+        </button>
+        <button class="nav-item" type="button" data-view="activity">
+          <svg><use href="#i-activity"></use></svg><span data-i18n="navActivity">رویدادها</span><span class="job-count" id="job-count" hidden>0</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-spacer"></div>
+      <div class="core-card">
+        <div class="core-emblem"><img src="/assets/homa-mark.svg" alt=""></div>
+        <div class="core-card-title"><span>HOMA CORE</span><span class="version-tag">v5.0</span></div>
+        <p data-i18n="coreTagline">سبک‌تر، سریع‌تر، همیشه آمادهٔ پرواز.</p>
+        <div class="core-status"><span class="status-dot online"></span><span id="core-status-text" data-i18n="connecting">در حال اتصال به هسته</span></div>
+      </div>
+      <a class="github-link" href="https://github.com/Dark-Sky07/HOMA-Optimizer" target="_blank" rel="noopener noreferrer">
+        <svg><use href="#i-external"></use></svg><span data-i18n="projectPage">صفحهٔ پروژه در گیت‌هاب</span>
+      </a>
+    </aside>
+
+    <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" aria-label="Close navigation" hidden></button>
+
+    <div class="main-shell">
+      <header class="topbar">
+        <div class="topbar-start">
+          <button class="icon-button mobile-menu" id="mobile-menu" type="button" aria-label="Open menu">
+            <svg><use href="#i-menu"></use></svg>
+          </button>
+          <div class="breadcrumb"><span>HOMA</span><svg><use href="#i-chevron"></use></svg><strong id="breadcrumb-current">داشبورد</strong></div>
+        </div>
+        <div class="topbar-actions">
+          <div class="live-pill" id="connection-pill"><span class="status-dot connecting"></span><span id="connection-text" data-i18n="connectingShort">در حال اتصال</span></div>
+          <button class="language-button" id="language-toggle" type="button" aria-label="Switch language"><svg><use href="#i-globe"></use></svg><span>EN</span></button>
+          <button class="icon-button" id="refresh-button" type="button" aria-label="Refresh dashboard" title="Refresh">
+            <svg><use href="#i-refresh"></use></svg>
+          </button>
+          <div class="host-chip"><span class="host-icon"><svg><use href="#i-server"></use></svg></span><span id="top-hostname" dir="ltr">—</span></div>
+        </div>
+      </header>
+
+      <main class="content">
+        <section class="view active" id="view-overview" data-view-panel="overview">
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow" id="current-date">مرکز فرمان HOMA</p>
+              <h1 data-i18n="overviewTitle">نمای کلی سرور</h1>
+              <p data-i18n="overviewSubtitle">همهٔ نشانه‌های حیاتی سرور، در یک نگاه.</p>
+            </div>
+            <button class="button button-secondary heading-action" type="button" data-action="system-audit">
+              <svg><use href="#i-scan"></use></svg><span data-i18n="runAudit">اجرای ممیزی سیستم</span>
+            </button>
+          </div>
+
+          <div class="hero-grid">
+            <article class="hero-card">
+              <div class="hero-pattern" aria-hidden="true"></div>
+              <div class="hero-content">
+                <div class="hero-kicker"><span></span><span data-i18n="heroKicker">متولد شده برای اوج‌گرفتن</span></div>
+                <h2 data-i18n="heroTitle">سرور تو،<br>در اوجِ پرواز.</h2>
+                <p data-i18n="heroText">بهینه‌سازی هوشمند شبکه، پایش لحظه‌ای و محافظت مداوم؛ یکپارچه در مرکز فرمان HOMA.</p>
+                <div class="hero-actions">
+                  <button class="button button-gold" type="button" data-view-target="optimization">
+                    <svg><use href="#i-sparkles"></use></svg><span data-i18n="optimizeNow">بهینه‌سازی سرور</span>
+                  </button>
+                  <button class="button button-ghost" type="button" data-action="network-audit">
+                    <span data-i18n="previewChanges">پیش‌نمایش تغییرات</span><svg class="flip-rtl"><use href="#i-arrow"></use></svg>
+                  </button>
+                </div>
+                <div class="hero-meta">
+                  <span><span class="status-dot online"></span><span data-i18n="panelSafe">ایمن برای پنل و کاربران</span></span>
+                  <span class="hero-os" id="hero-os" dir="ltr">Linux</span>
+                </div>
+              </div>
+              <div class="hero-art" aria-hidden="true">
+                <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+                <img src="/assets/homa-bird.webp" alt="" fetchpriority="high">
+              </div>
+            </article>
+
+            <article class="card health-card">
+              <div class="card-header">
+                <div><p class="card-kicker" data-i18n="realtime">بلادرنگ</p><h3 data-i18n="systemHealth">سلامت سیستم</h3></div>
+                <span class="soft-icon"><svg><use href="#i-pulse"></use></svg></span>
+              </div>
+              <div class="health-gauge">
+                <svg viewBox="0 0 180 110" role="img" aria-label="System health score">
+                  <path class="gauge-track" d="M25 95a65 65 0 0 1 130 0" pathLength="100"/>
+                  <path class="gauge-value" id="health-arc" d="M25 95a65 65 0 0 1 130 0" pathLength="100" stroke-dasharray="0 100"/>
+                </svg>
+                <div class="health-score"><strong id="health-score">—</strong><span>/ 100</span></div>
+              </div>
+              <div class="health-label" id="health-label"><span class="status-dot connecting"></span><span data-i18n="collectingData">در حال دریافت اطلاعات</span></div>
+              <div class="health-details">
+                <div><span data-i18n="uptime">مدت روشن بودن</span><strong id="health-uptime">—</strong></div>
+                <div><span data-i18n="kernel">کرنل</span><strong id="health-kernel" dir="ltr">—</strong></div>
+              </div>
+            </article>
+          </div>
+
+          <div class="metrics-grid">
+            <article class="card metric-card">
+              <div class="metric-top"><span class="metric-icon gold"><svg><use href="#i-cpu"></use></svg></span><span class="metric-label" data-i18n="processor">پردازنده</span><span class="metric-badge" id="cpu-cores">—</span></div>
+              <div class="metric-value"><strong id="cpu-value">—</strong><span>%</span></div>
+              <progress id="cpu-progress" max="100" value="0" aria-label="CPU usage"></progress>
+              <div class="metric-footer"><span data-i18n="loadAverage">میانگین بار</span><span id="cpu-load" dir="ltr">—</span></div>
+            </article>
+            <article class="card metric-card">
+              <div class="metric-top"><span class="metric-icon green"><svg><use href="#i-memory"></use></svg></span><span class="metric-label" data-i18n="memory">حافظه</span><span class="metric-badge" id="memory-total">—</span></div>
+              <div class="metric-value"><strong id="memory-value">—</strong><span>%</span></div>
+              <progress id="memory-progress" class="green-progress" max="100" value="0" aria-label="Memory usage"></progress>
+              <div class="metric-footer"><span data-i18n="used">مصرف‌شده</span><span id="memory-used" dir="ltr">—</span></div>
+            </article>
+            <article class="card metric-card">
+              <div class="metric-top"><span class="metric-icon blue"><svg><use href="#i-disk"></use></svg></span><span class="metric-label" data-i18n="disk">فضای دیسک</span><span class="metric-badge" id="disk-total">—</span></div>
+              <div class="metric-value"><strong id="disk-value">—</strong><span>%</span></div>
+              <progress id="disk-progress" class="blue-progress" max="100" value="0" aria-label="Disk usage"></progress>
+              <div class="metric-footer"><span data-i18n="available">آزاد</span><span id="disk-free" dir="ltr">—</span></div>
+            </article>
+            <article class="card metric-card">
+              <div class="metric-top"><span class="metric-icon violet"><svg><use href="#i-link"></use></svg></span><span class="metric-label" data-i18n="connections">اتصال‌های فعال</span><span class="live-mini"><span class="status-dot online"></span>LIVE</span></div>
+              <div class="metric-value connections-value"><strong id="connections-value">—</strong></div>
+              <div class="connection-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="metric-footer"><span data-i18n="networkInterface">کارت شبکه</span><span id="network-interface" dir="ltr">—</span></div>
+            </article>
+          </div>
+
+          <div class="dashboard-grid">
+            <article class="card network-card">
+              <div class="card-header network-header">
+                <div><p class="card-kicker" data-i18n="liveTraffic">ترافیک زنده</p><h3 data-i18n="networkPulse">نبض شبکه</h3></div>
+                <div class="network-rates">
+                  <div><span class="rate-label"><i class="legend-dot download"></i><span data-i18n="download">دریافت</span></span><strong id="rx-rate" dir="ltr">—</strong></div>
+                  <div><span class="rate-label"><i class="legend-dot upload"></i><span data-i18n="upload">ارسال</span></span><strong id="tx-rate" dir="ltr">—</strong></div>
+                </div>
+              </div>
+              <div class="chart-wrap"><canvas id="network-chart" role="img" aria-label="Live network throughput chart"></canvas><div class="chart-empty" id="chart-empty"><span class="status-dot connecting"></span><span data-i18n="waitingForTraffic">در انتظار نخستین نمونه‌های ترافیک</span></div></div>
+              <div class="chart-footer"><span data-i18n="lastMinute">۶۰ نمونهٔ اخیر</span><span><span class="status-dot online"></span><span data-i18n="autoRefresh">به‌روزرسانی خودکار</span></span></div>
+            </article>
+
+            <article class="card services-card">
+              <div class="card-header"><div><p class="card-kicker" data-i18n="protectionLayer">لایه‌های محافظ</p><h3 data-i18n="flightSystems">سامانه‌های پرواز</h3></div><span class="soft-icon"><svg><use href="#i-shield"></use></svg></span></div>
+              <div class="service-list" id="service-list"><div class="service-skeleton"></div><div class="service-skeleton"></div><div class="service-skeleton"></div><div class="service-skeleton"></div></div>
+            </article>
+          </div>
+
+          <div class="bottom-grid">
+            <article class="card quick-card">
+              <div class="card-header"><div><p class="card-kicker" data-i18n="oneClick">تنها با یک کلیک</p><h3 data-i18n="quickActions">دسترسی سریع</h3></div></div>
+              <div class="quick-actions">
+                <button type="button" data-action="backup-create"><span class="quick-icon"><svg><use href="#i-archive"></use></svg></span><span><strong data-i18n="newBackup">پشتیبان‌گیری تازه</strong><small data-i18n="newBackupHint">ثبت یک نسخهٔ امن از پنل</small></span><svg class="quick-arrow flip-rtl"><use href="#i-arrow"></use></svg></button>
+                <button type="button" data-action="speedtest"><span class="quick-icon"><svg><use href="#i-gauge"></use></svg></span><span><strong data-i18n="speedTest">سنجش سرعت</strong><small data-i18n="speedTestHint">بررسی پهنای باند سرور</small></span><svg class="quick-arrow flip-rtl"><use href="#i-arrow"></use></svg></button>
+                <button type="button" data-action="port-scan"><span class="quick-icon"><svg><use href="#i-radar"></use></svg></span><span><strong data-i18n="portScan">بررسی پورت‌ها</strong><small data-i18n="portScanHint">نقشهٔ پورت‌ها و فایروال</small></span><svg class="quick-arrow flip-rtl"><use href="#i-arrow"></use></svg></button>
+              </div>
+            </article>
+            <article class="card recent-card">
+              <div class="card-header"><div><p class="card-kicker" data-i18n="auditTrail">ردپای عملیات</p><h3 data-i18n="recentActivity">رویدادهای اخیر</h3></div><button class="text-button" type="button" data-view-target="activity"><span data-i18n="viewAll">مشاهدهٔ همه</span><svg class="flip-rtl"><use href="#i-arrow"></use></svg></button></div>
+              <div class="activity-list compact" id="recent-activity"><div class="empty-state small"><svg><use href="#i-activity"></use></svg><p data-i18n="noActivity">هنوز عملیاتی ثبت نشده است.</p></div></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-optimization" data-view-panel="optimization" hidden>
+          <div class="page-heading"><div><p class="eyebrow">HOMA OPTIMIZATION</p><h1 data-i18n="optimizationTitle">مرکز بهینه‌سازی</h1><p data-i18n="optimizationSubtitle">قدرت سرور را با ابزارهای دقیق و قابل‌کنترل آزاد کنید.</p></div><span class="mode-badge" id="optimization-mode">CONTROL MODE</span></div>
+          <article class="optimization-hero">
+            <div><span class="optimization-symbol"><svg><use href="#i-sparkles"></use></svg></span><div><p class="eyebrow" data-i18n="fullSuite">سوئیت کامل HOMA</p><h2 data-i18n="fullOptimization">بهینه‌سازی یک‌مرحله‌ای سرور</h2><p data-i18n="fullOptimizationText">شبکه، حافظه، امنیت، زمان‌بند و نگهبان را در یک فرایند هدایت‌شده ارتقا دهید.</p></div></div>
+            <button class="button button-gold" type="button" data-action="full-optimize"><svg><use href="#i-play"></use></svg><span data-i18n="startSuite">آغاز سوئیت کامل</span></button>
+          </article>
+          <div class="section-heading"><h2 data-i18n="individualModules">ماژول‌های مستقل</h2><p data-i18n="individualModulesHint">پیش از اجرای تغییرات، تأیید شما دریافت می‌شود.</p></div>
+          <div class="action-grid" id="optimization-grid"></div>
+        </section>
+
+        <section class="view" id="view-diagnostics" data-view-panel="diagnostics" hidden>
+          <div class="page-heading"><div><p class="eyebrow">HOMA DIAGNOSTICS</p><h1 data-i18n="diagnosticsTitle">عیب‌یابی و آزمون</h1><p data-i18n="diagnosticsSubtitle">سرور را بسنجید، بدون آنکه پیکربندی آن را تغییر دهید.</p></div><span class="mode-badge safe"><svg><use href="#i-shield"></use></svg><span data-i18n="readOnlyTools">ابزارهای فقط‌خواندنی</span></span></div>
+          <div class="diagnostic-note"><svg><use href="#i-info"></use></svg><p data-i18n="diagnosticNote">نتایج در پنجرهٔ عملیات به‌صورت زنده نمایش داده می‌شوند. آزمون‌های شبکه ممکن است چند لحظه طول بکشند.</p></div>
+          <div class="action-grid diagnostics-grid" id="diagnostics-grid"></div>
+        </section>
+
+        <section class="view" data-view-panel="activity" hidden>
+          <div class="page-heading"><div><p class="eyebrow">HOMA AUDIT TRAIL</p><h1 data-i18n="activityTitle">رویدادها و عملیات</h1><p data-i18n="activitySubtitle">وضعیت و خروجی تمام فرایندهای این نشست پنل.</p></div><button class="button button-secondary" id="activity-refresh" type="button"><svg><use href="#i-refresh"></use></svg><span data-i18n="refreshList">به‌روزرسانی فهرست</span></button></div>
+          <article class="card activity-page-card"><div id="activity-list" class="activity-list"><div class="empty-state"><svg><use href="#i-activity"></use></svg><h3 data-i18n="noActivityYet">رویدادی وجود ندارد</h3><p data-i18n="noActivityDescription">نخستین ممیزی یا بهینه‌سازی را اجرا کنید تا جزئیات آن اینجا ثبت شود.</p></div></div></article>
+        </section>
+      </main>
+      <footer class="app-footer"><span>HOMA · Rise above limits.</span><span data-i18n="footerSafety">طراحی‌شده برای کنترل دقیق و عملکرد پایدار</span></footer>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="action-modal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button class="icon-button modal-close" type="button" data-close-modal aria-label="Close"><svg><use href="#i-close"></use></svg></button>
+      <span class="modal-symbol" id="modal-symbol"><svg><use href="#i-sparkles"></use></svg></span>
+      <p class="eyebrow">HOMA CONTROL</p>
+      <h2 id="modal-title">تأیید عملیات</h2>
+      <p id="modal-description"></p>
+      <div class="modal-warning" id="modal-warning"><svg><use href="#i-alert"></use></svg><span data-i18n="confirmationWarning">این عملیات تنظیمات سرور را تغییر می‌دهد. از دسترسی پایدار به سرور مطمئن باشید.</span></div>
+      <div class="modal-actions"><button class="button button-ghost" type="button" data-close-modal data-i18n="cancel">انصراف</button><button class="button button-gold" id="confirm-action" type="button"><svg><use href="#i-play"></use></svg><span data-i18n="confirmRun">تأیید و اجرا</span></button></div>
+    </section>
+  </div>
+
+  <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
+  <aside class="job-drawer" id="job-drawer" aria-labelledby="job-title" hidden>
+    <div class="drawer-header"><div><p class="eyebrow">LIVE OPERATION</p><h2 id="job-title">جزئیات عملیات</h2></div><button class="icon-button" id="close-drawer" type="button" aria-label="Close"><svg><use href="#i-close"></use></svg></button></div>
+    <div class="job-summary"><span class="job-status-badge" id="job-status">—</span><span id="job-time">—</span></div>
+    <div class="terminal-window"><div class="terminal-top"><span><i></i><i></i><i></i></span><strong>homa@server · operation.log</strong><button class="icon-button small" id="copy-log" type="button" aria-label="Copy log"><svg><use href="#i-copy"></use></svg></button></div><pre id="job-output" dir="ltr">Waiting for operation output…</pre></div>
+    <button class="button button-secondary drawer-done" id="drawer-done" type="button" data-i18n="backToPanel">بازگشت به پنل</button>
+  </aside>
+
+  <div class="auth-screen" id="auth-screen" hidden>
+    <div class="auth-pattern"></div>
+    <form class="auth-card" id="auth-form">
+      <span class="auth-logo"><img src="/assets/homa-mark.svg" alt="HOMA"></span>
+      <p class="eyebrow">SECURE COMMAND CENTER</p><h1>HOMA</h1><p data-i18n="authText">برای ورود به مرکز فرمان، نشانهٔ دسترسی پنل را وارد کنید.</p>
+      <label for="auth-token" data-i18n="accessToken">نشانهٔ دسترسی</label><input id="auth-token" name="token" type="password" autocomplete="current-password" required dir="ltr" placeholder="••••••••••••••••">
+      <p class="auth-error" id="auth-error" role="alert" hidden data-i18n="authError">نشانهٔ دسترسی معتبر نیست.</p>
+      <button class="button button-gold" type="submit"><svg><use href="#i-lock"></use></svg><span data-i18n="unlockPanel">ورود امن به پنل</span></button>
+      <small data-i18n="authHint">نشانه در فایل /etc/homa/panel.env روی سرور ذخیره شده است.</small>
+    </form>
+  </div>
+
+  <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+  <noscript><div class="noscript">HOMA panel requires JavaScript for live system monitoring.</div></noscript>
+</body>
+</html>
