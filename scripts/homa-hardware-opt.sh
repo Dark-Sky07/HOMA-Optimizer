@@ -15,7 +15,6 @@
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
 set -u
 
-BASE_DIR="/opt/homa"
 VM_CONF="/etc/sysctl.d/97-homa-vm.conf"
 LIMITS_CONF="/etc/security/limits.d/99-homa-limits.conf"
 SYSTEMD_LIMITS_DIR="/etc/systemd/system.conf.d"
@@ -79,6 +78,10 @@ manage_swap() {
   printf "  Total Physical RAM:  %s%s GB%s\n" "$C_W" "$ram_gb" "$C_0"
   printf "  Current Active Swap: %s%s GB%s\n" "$C_W" "$cur_swap_gb" "$C_0"
   printf "  Free Disk Space:     %s%s GB%s\n\n" "$C_W" "$free_disk" "$C_0"
+  if ! [[ "$free_disk" =~ ^[0-9]+$ ]]; then
+    bad "Unable to determine free disk space safely."
+    return 1
+  fi
 
   local opt1=$(( ram_gb / 2 ))
   [ "$opt1" -lt 1 ] && opt1=1
@@ -102,8 +105,8 @@ manage_swap() {
     3) target_gb=$opt3 ;;
     4)
       read -r -p "  Enter custom swap size in GB (e.g. 3): " custom_size || custom_size="0"
-      if [[ "$custom_size" =~ ^[0-9]+$ ]] && [ "$custom_size" -gt 0 ]; then
-        target_gb=$custom_size
+      if [[ "$custom_size" =~ ^[0-9]+$ ]] && [ "${#custom_size}" -le 6 ] && [ "$custom_size" -gt 0 ]; then
+        target_gb=$((10#$custom_size))
       else
         bad "Invalid size entered."
         return 1
@@ -111,7 +114,7 @@ manage_swap() {
       ;;
     5)
       disable_swap
-      return 0
+      return $?
       ;;
     *)
       info "Swap configuration cancelled."
@@ -122,41 +125,65 @@ manage_swap() {
   if [ "$target_gb" -gt 0 ]; then
     if [ "$target_gb" -ge "$free_disk" ]; then
       bad "Not enough free disk space ($free_disk GB available, requested $target_gb GB)!"
-      read -r -p "  Press [Enter] to return..." dummy || true
+      read -r -p "  Press [Enter] to return..." _ || true
       return 1
     fi
-    create_swap "$target_gb"
+    create_swap "$target_gb" || return 1
     printf "\n"
-    read -r -p "  Press [Enter] to return to main menu..." dummy || true
+    read -r -p "  Press [Enter] to return to main menu..." _ || true
   fi
 }
 
 create_swap() {
+  check_root
   local size_gb="$1"
+  if ! [[ "$size_gb" =~ ^[0-9]+$ ]] || [ "${#size_gb}" -gt 6 ] || [ "$size_gb" -le 0 ]; then
+    bad "Invalid swap size."
+    return 1
+  fi
+  size_gb=$((10#$size_gb))
   info "Configuring ${size_gb}GB swap file at /swapfile..."
-  
-  # Deactivate existing swapfile if active
-  if swapon --show 2>/dev/null | grep -q "/swapfile"; then
+
+  # Never unlink an active swapfile when deactivation fails.
+  if swapon --show 2>/dev/null | awk '$1 == "/swapfile" {found=1} END {exit !found}'; then
     info "Turning off current /swapfile..."
-    swapoff /swapfile 2>/dev/null || true
+    if ! swapoff /swapfile 2>/dev/null; then
+      bad "Could not deactivate the existing swapfile; it was left untouched."
+      return 1
+    fi
   fi
 
-  rm -f /swapfile
-
-  # Allocate space
-  if have fallocate; then
-    fallocate -l "${size_gb}G" /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=$((size_gb * 1024)) status=progress
-  else
-    dd if=/dev/zero of=/swapfile bs=1M count=$((size_gb * 1024)) status=progress
+  if ! rm -f /swapfile; then
+    bad "Could not remove the old swapfile."
+    return 1
   fi
 
-  chmod 600 /swapfile
-  mkswap /swapfile >/dev/null
-  swapon /swapfile
+  if ! fallocate -l "${size_gb}G" /swapfile 2>/dev/null; then
+    info "fallocate failed or is unavailable; using dd instead."
+    if ! dd if=/dev/zero of=/swapfile bs=1M count=$((size_gb * 1024)) status=progress; then
+      rm -f /swapfile
+      bad "Swapfile allocation failed."
+      return 1
+    fi
+  fi
 
-  # Persist in /etc/fstab safely
-  if ! grep -q "/swapfile" /etc/fstab; then
-    echo "/swapfile none swap sw 0 0" >> /etc/fstab
+  if ! chmod 600 /swapfile || ! mkswap /swapfile >/dev/null; then
+    rm -f /swapfile
+    bad "Could not initialize the swapfile."
+    return 1
+  fi
+  if ! swapon /swapfile; then
+    rm -f /swapfile
+    bad "Could not activate the new swapfile."
+    return 1
+  fi
+
+  # Persist only after the new swapfile is active.
+  if ! awk '$1 == "/swapfile" {found=1} END {exit !found}' /etc/fstab 2>/dev/null; then
+    if ! echo "/swapfile none swap sw 0 0" >> /etc/fstab; then
+      bad "Swap is active, but its /etc/fstab entry could not be saved."
+      return 1
+    fi
     ok "Added /swapfile to /etc/fstab"
   fi
 
@@ -164,15 +191,25 @@ create_swap() {
 }
 
 disable_swap() {
+  check_root
   info "Deactivating and removing /swapfile..."
-  if swapon --show 2>/dev/null | grep -q "/swapfile"; then
-    swapoff /swapfile 2>/dev/null || true
+  if swapon --show 2>/dev/null | awk '$1 == "/swapfile" {found=1} END {exit !found}'; then
+    if ! swapoff /swapfile 2>/dev/null; then
+      bad "Could not deactivate /swapfile; it was left active and untouched."
+      return 1
+    fi
   fi
-  rm -f /swapfile
-  sed -i '\|/swapfile|d' /etc/fstab 2>/dev/null || true
+  if ! rm -f /swapfile; then
+    bad "Could not remove /swapfile."
+    return 1
+  fi
+  if ! sed -i -E '\#^[[:space:]]*/swapfile[[:space:]]+none[[:space:]]+swap([[:space:]]|$)#d' /etc/fstab 2>/dev/null; then
+    bad "Swapfile was removed, but its /etc/fstab entry could not be cleaned."
+    return 1
+  fi
   ok "Swap disabled and removed."
   printf "\n"
-  read -r -p "  Press [Enter] to return to main menu..." dummy || true
+  read -r -p "  Press [Enter] to return to main menu..." _ || true
 }
 
 # ----------------- Virtual Memory Tuning -----------------
@@ -306,11 +343,11 @@ show_status() {
   printf "  vm.swappiness:       %s%s%s (Target: 10)\n" "$C_W" "$swappiness_val" "$C_0"
 
   printf "\n  Configuration files:\n"
-  [ -f "$VM_CONF" ] && ok "RAM/VM tuning: ACTIVE ($VM_CONF)" || warn "RAM/VM tuning: Not applied"
-  [ -f "$LIMITS_CONF" ] && ok "Ulimit 1M limits: ACTIVE ($LIMITS_CONF)" || warn "Ulimit limits: Default"
-  [ -f "$JOURNAL_CONF" ] && ok "Journald 200M cap: ACTIVE ($JOURNAL_CONF)" || warn "Journald log cap: Default"
-  [ -f "/etc/sysctl.d/96-homa-conntrack.conf" ] && ok "Conntrack 262k: ACTIVE" || warn "Conntrack: Default"
-  [ -f "$RESOLVED_CONF" ] && ok "Fast DNS Caching: ACTIVE" || warn "DNS Caching: Default"
+  if [ -f "$VM_CONF" ]; then ok "RAM/VM tuning: ACTIVE ($VM_CONF)"; else warn "RAM/VM tuning: Not applied"; fi
+  if [ -f "$LIMITS_CONF" ]; then ok "Ulimit 1M limits: ACTIVE ($LIMITS_CONF)"; else warn "Ulimit limits: Default"; fi
+  if [ -f "$JOURNAL_CONF" ]; then ok "Journald 200M cap: ACTIVE ($JOURNAL_CONF)"; else warn "Journald log cap: Default"; fi
+  if [ -f "/etc/sysctl.d/96-homa-conntrack.conf" ]; then ok "Conntrack 262k: ACTIVE"; else warn "Conntrack: Default"; fi
+  if [ -f "$RESOLVED_CONF" ]; then ok "Fast DNS Caching: ACTIVE"; else warn "DNS Caching: Default"; fi
 }
 
 apply_all_automated() {

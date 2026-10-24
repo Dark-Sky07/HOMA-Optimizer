@@ -20,9 +20,9 @@ ACTIVE_FLAG="${BASE_DIR}/instagram-meta-fix.active"
 # Color helpers
 if [ -t 1 ]; then
   C_G=$'\033[0;32m'; C_Y=$'\033[0;33m'; C_R=$'\033[0;31m'
-  C_B=$'\033[1;36m'; C_W=$'\033[1;37m'; C_C=$'\033[0;36m'; C_0=$'\033[0m'
+  C_B=$'\033[1;36m'; C_W=$'\033[1;37m'; C_0=$'\033[0m'
 else
-  C_G=""; C_Y=""; C_R=""; C_B=""; C_W=""; C_C=""; C_0=""
+  C_G=""; C_Y=""; C_R=""; C_B=""; C_W=""; C_0=""
 fi
 
 section(){ printf "\n%s=== %s ===%s\n" "$C_B" "$1" "$C_0"; }
@@ -95,24 +95,37 @@ apply_fix() {
   check_root
   section "Applying Targeted Instagram Streaming Optimization"
 
-  mkdir -p "$BASE_DIR"
+  if ! command -v iptables >/dev/null 2>&1; then
+    bad "iptables is required; no changes were applied."
+    return 1
+  fi
+  if ! mkdir -p "$BASE_DIR"; then
+    bad "Could not create $BASE_DIR."
+    return 1
+  fi
 
-  # Clean up any generic UDP 443 rules and hardcoded MSS restrictions
-  while iptables -D OUTPUT -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable 2>/dev/null; do :; done
-  while iptables -D FORWARD -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable 2>/dev/null; do :; done
-
-  # Ensure PMTU clamping is used
+  # Do not remove generic UDP/443 rules: they may belong to another service.
+  # Ensure PMTU clamping is used.
   if ! iptables -t mangle -C POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu >/dev/null 2>&1; then
-    iptables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu >/dev/null 2>&1 || true
+    if ! iptables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu >/dev/null 2>&1; then
+      bad "Could not add TCP MSS clamping; no Meta rules were changed."
+      return 1
+    fi
   fi
 
   info "Injecting targeted QUIC rejection for Meta/Instagram CDN IPv4 ranges..."
   for cidr in "${META_CIDRS[@]}"; do
     if ! iptables -C OUTPUT -d "$cidr" -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable >/dev/null 2>&1; then
-      iptables -I OUTPUT -d "$cidr" -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable 2>/dev/null || true
+      if ! iptables -I OUTPUT -d "$cidr" -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable 2>/dev/null; then
+        bad "Could not add the IPv4 OUTPUT rule for $cidr. Run --rollback to remove partial changes."
+        return 1
+      fi
     fi
     if ! iptables -C FORWARD -d "$cidr" -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable >/dev/null 2>&1; then
-      iptables -I FORWARD -d "$cidr" -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable 2>/dev/null || true
+      if ! iptables -I FORWARD -d "$cidr" -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable 2>/dev/null; then
+        bad "Could not add the IPv4 FORWARD rule for $cidr. Run --rollback to remove partial changes."
+        return 1
+      fi
     fi
   done
 
@@ -120,20 +133,32 @@ apply_fix() {
     info "Injecting targeted QUIC rejection for Meta IPv6 ranges..."
     for cidr6 in "${META_IPV6_CIDRS[@]}"; do
       if ! ip6tables -C OUTPUT -d "$cidr6" -p udp --dport 443 -j REJECT --reject-with icmp6-port-unreachable >/dev/null 2>&1; then
-        ip6tables -I OUTPUT -d "$cidr6" -p udp --dport 443 -j REJECT --reject-with icmp6-port-unreachable 2>/dev/null || true
+        if ! ip6tables -I OUTPUT -d "$cidr6" -p udp --dport 443 -j REJECT --reject-with icmp6-port-unreachable 2>/dev/null; then
+          bad "Could not add the IPv6 OUTPUT rule for $cidr6. Run --rollback to remove partial changes."
+          return 1
+        fi
       fi
       if ! ip6tables -C FORWARD -d "$cidr6" -p udp --dport 443 -j REJECT --reject-with icmp6-port-unreachable >/dev/null 2>&1; then
-        ip6tables -I FORWARD -d "$cidr6" -p udp --dport 443 -j REJECT --reject-with icmp6-port-unreachable 2>/dev/null || true
+        if ! ip6tables -I FORWARD -d "$cidr6" -p udp --dport 443 -j REJECT --reject-with icmp6-port-unreachable 2>/dev/null; then
+          bad "Could not add the IPv6 FORWARD rule for $cidr6. Run --rollback to remove partial changes."
+          return 1
+        fi
       fi
     done
   fi
 
-  # Kernel TCP streaming buffer tuning
+  # Kernel TCP streaming buffer tuning.
   info "Applying kernel streaming buffers for rapid reel buffering..."
-  /sbin/sysctl -w net.ipv4.tcp_slow_start_after_idle=0 >/dev/null 2>&1 || true
-  /sbin/sysctl -w net.ipv4.tcp_notsent_lowat=131072 >/dev/null 2>&1 || true
+  if ! /sbin/sysctl -w net.ipv4.tcp_slow_start_after_idle=0 >/dev/null 2>&1 ||
+     ! /sbin/sysctl -w net.ipv4.tcp_notsent_lowat=131072 >/dev/null 2>&1; then
+    bad "A required sysctl setting failed; the Instagram fix is incomplete."
+    return 1
+  fi
 
-  touch "$ACTIVE_FLAG"
+  if ! touch "$ACTIVE_FLAG"; then
+    bad "Could not record Instagram fix state."
+    return 1
+  fi
   printf "\n"
   ok "Targeted Instagram optimizer applied successfully!"
   info "- WireGuard and Cloudflare WARP remain 100% active and untouched."
@@ -146,19 +171,48 @@ rollback_fix() {
   check_root
   section "Rolling back Instagram targeted rules"
 
+  if ! command -v iptables >/dev/null 2>&1; then
+    bad "iptables is required to verify rollback."
+    return 1
+  fi
+  local failures=0
   for cidr in "${META_CIDRS[@]}"; do
-    while iptables -D OUTPUT -d "$cidr" -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable 2>/dev/null; do :; done
-    while iptables -D FORWARD -d "$cidr" -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable 2>/dev/null; do :; done
+    while iptables -C OUTPUT -d "$cidr" -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable >/dev/null 2>&1; do
+      if ! iptables -D OUTPUT -d "$cidr" -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable 2>/dev/null; then
+        failures=$((failures + 1))
+        break
+      fi
+    done
+    while iptables -C FORWARD -d "$cidr" -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable >/dev/null 2>&1; do
+      if ! iptables -D FORWARD -d "$cidr" -p udp --dport 443 -j REJECT --reject-with icmp-port-unreachable 2>/dev/null; then
+        failures=$((failures + 1))
+        break
+      fi
+    done
   done
 
   if command -v ip6tables >/dev/null 2>&1; then
     for cidr6 in "${META_IPV6_CIDRS[@]}"; do
-      while ip6tables -D OUTPUT -d "$cidr6" -p udp --dport 443 -j REJECT --reject-with icmp6-port-unreachable 2>/dev/null; do :; done
-      while ip6tables -D FORWARD -d "$cidr6" -p udp --dport 443 -j REJECT --reject-with icmp6-port-unreachable 2>/dev/null; do :; done
+      while ip6tables -C OUTPUT -d "$cidr6" -p udp --dport 443 -j REJECT --reject-with icmp6-port-unreachable >/dev/null 2>&1; do
+        if ! ip6tables -D OUTPUT -d "$cidr6" -p udp --dport 443 -j REJECT --reject-with icmp6-port-unreachable 2>/dev/null; then
+          failures=$((failures + 1))
+          break
+        fi
+      done
+      while ip6tables -C FORWARD -d "$cidr6" -p udp --dport 443 -j REJECT --reject-with icmp6-port-unreachable >/dev/null 2>&1; do
+        if ! ip6tables -D FORWARD -d "$cidr6" -p udp --dport 443 -j REJECT --reject-with icmp6-port-unreachable 2>/dev/null; then
+          failures=$((failures + 1))
+          break
+        fi
+      done
     done
   fi
 
-  rm -f "$ACTIVE_FLAG"
+  rm -f "$ACTIVE_FLAG" || failures=$((failures + 1))
+  if [ "$failures" -gt 0 ]; then
+    bad "Instagram rollback encountered $failures error(s)."
+    return 1
+  fi
   ok "Instagram rules rolled back cleanly."
 }
 

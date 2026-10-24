@@ -6,7 +6,7 @@
 #  Schedules a nightly automated maintenance job at 04:00 AM:
 #    1. Reclaims dead RAM cache (sync; echo 3 > /proc/sys/vm/drop_caches)
 #    2. Vacuums systemd journal logs older than 3 days
-#    3. Cleans stale temporary files
+#    3. Cleans stale HOMA temporary files without touching other /tmp data
 #===============================================================================
 
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
@@ -17,9 +17,9 @@ CRON_FILE="/etc/cron.d/homa-janitor"
 # Color helpers
 if [ -t 1 ]; then
   C_G=$'\033[0;32m'; C_Y=$'\033[0;33m'; C_R=$'\033[0;31m'
-  C_B=$'\033[1;36m'; C_W=$'\033[1;37m'; C_0=$'\033[0m'
+  C_B=$'\033[1;36m'; C_0=$'\033[0m'
 else
-  C_G=""; C_Y=""; C_R=""; C_B=""; C_W=""; C_0=""
+  C_G=""; C_Y=""; C_R=""; C_B=""; C_0=""
 fi
 
 section(){ printf "\n%s=== %s ===%s\n" "$C_B" "$1" "$C_0"; }
@@ -52,7 +52,7 @@ enable_cron() {
 
   cat << 'EOF' > "$CRON_FILE"
 # HOMA VPS Nightly Janitor: Cleans dead RAM cache and vacuums logs at 04:00 AM
-0 4 * * * root sync; echo 3 > /proc/sys/vm/drop_caches; journalctl --vacuum-time=3d --vacuum-size=200M >/dev/null 2>&1; find /tmp -type f -atime +3 -delete 2>/dev/null
+0 4 * * * root sync; echo 3 > /proc/sys/vm/drop_caches; journalctl --vacuum-time=3d --vacuum-size=200M >/dev/null 2>&1; find /tmp -xdev -maxdepth 1 -type f -name 'homa-*' -atime +3 -delete 2>/dev/null
 EOF
   chmod 644 "$CRON_FILE"
   systemctl restart cron 2>/dev/null || systemctl restart crond 2>/dev/null || true

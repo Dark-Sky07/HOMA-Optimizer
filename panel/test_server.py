@@ -3,9 +3,13 @@
 
 from __future__ import annotations
 
+import argparse
 import contextlib
+import http.client
 import io
+import json
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -49,10 +53,25 @@ class ConfigurationTests(unittest.TestCase):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             server.parse_args(["--host", "0.0.0.0"])
 
-    def test_public_read_only_mode_is_allowed(self) -> None:
-        args = server.parse_args(["--host", "0.0.0.0", "--port", "8787", "--read-only"])
+    def test_public_read_only_mode_requires_explicit_opt_in(self) -> None:
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            server.parse_args(["--host", "0.0.0.0", "--port", "8787", "--read-only"])
+
+    def test_public_demo_requires_host_allowlist(self) -> None:
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            server.parse_args(["--host", "0.0.0.0", "--read-only", "--allow-public-read-only"])
+
+    def test_explicit_public_read_only_demo_is_allowed(self) -> None:
+        args = server.parse_args([
+            "--host", "0.0.0.0",
+            "--port", "8787",
+            "--read-only",
+            "--allow-public-read-only",
+            "--allowed-host", "demo.example.com",
+        ])
         self.assertTrue(args.read_only)
         self.assertEqual(args.port, 8787)
+        self.assertEqual(args.allowed_hosts, ["demo.example.com"])
 
     def test_loopback_detection(self) -> None:
         self.assertFalse(server.non_loopback("127.0.0.1"))
@@ -114,6 +133,30 @@ class JobManagerTests(unittest.TestCase):
                 self.assertEqual(result["exit_code"], 0)
                 self.assertIn("safe audit", result["output"])
                 self.assertNotIn("\x1b", result["output"])
+
+    def test_timeout_escalates_when_process_group_ignores_sigterm(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            script = Path(directory) / "homa-boost.sh"
+            script.write_text("#!/usr/bin/env bash\ntrap '' TERM\nprintf 'ready\\n'\nsleep 30\n")
+            manager = server.JobManager(read_only=True)
+            with mock.patch.object(server, "SCRIPTS_DIR", Path(directory)), \
+                 mock.patch.object(server, "PROCESS_STOP_GRACE", 0.1), \
+                 mock.patch.dict(server.ACTION_MAP["network-audit"], {"timeout": 0.1}):
+                job, error = manager.start("network-audit")
+                self.assertIsNone(error)
+                self.assertIsNotNone(job)
+                deadline = time.monotonic() + 4
+                while time.monotonic() < deadline:
+                    result = manager.get(job["id"])
+                    self.assertIsNotNone(result)
+                    if result["status"] not in {"queued", "running"}:
+                        break
+                    time.sleep(0.02)
+                result = manager.get(job["id"])
+                self.assertEqual(result["status"], "failed")
+                self.assertNotEqual(result["exit_code"], 0)
+                self.assertIn("time limit reached", result["output"])
+                self.assertIsNone(manager.active())
 
     def test_successful_update_schedules_controlled_panel_restart(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -177,6 +220,80 @@ class JobManagerTests(unittest.TestCase):
                 while manager.active() and time.monotonic() < deadline:
                     time.sleep(0.02)
                 self.assertIsNone(manager.active())
+
+
+class HttpSecurityTests(unittest.TestCase):
+    def make_server(self, **overrides) -> server.HomaHTTPServer:
+        config = argparse.Namespace(
+            host="127.0.0.1",
+            port=0,
+            token="",
+            read_only=True,
+            allow_public_read_only=False,
+            allowed_hosts=[],
+        )
+        for key, value in overrides.items():
+            setattr(config, key, value)
+        httpd = server.HomaHTTPServer(("127.0.0.1", 0), server.HomaHandler, config)
+        thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+
+        def cleanup() -> None:
+            httpd.shutdown()
+            httpd.server_close()
+            thread.join(timeout=2)
+
+        self.addCleanup(cleanup)
+        return httpd
+
+    def request(self, httpd: server.HomaHTTPServer, method: str, path: str, **kwargs):
+        connection = http.client.HTTPConnection("127.0.0.1", httpd.server_port, timeout=3)
+        try:
+            connection.request(method, path, **kwargs)
+            response = connection.getresponse()
+            payload = response.read()
+            return response, payload
+        finally:
+            connection.close()
+
+    def test_tokenless_loopback_rejects_dns_rebinding_host(self) -> None:
+        httpd = self.make_server()
+        response, payload = self.request(httpd, "GET", "/api/session", headers={"Host": "attacker.example"})
+        self.assertEqual(response.status, 403)
+        self.assertEqual(json.loads(payload)["error"]["code"], "invalid_host")
+
+    def test_tokenless_loopback_accepts_local_host(self) -> None:
+        httpd = self.make_server()
+        response, payload = self.request(httpd, "GET", "/api/session")
+        self.assertEqual(response.status, 200)
+        self.assertEqual(json.loads(payload)["version"], server.VERSION)
+
+    def test_public_demo_allows_only_configured_public_host(self) -> None:
+        httpd = self.make_server(host="0.0.0.0", allowed_hosts=["demo.example.com"], allow_public_read_only=True)
+        response, _ = self.request(httpd, "GET", "/api/session", headers={"Host": "demo.example.com"})
+        self.assertEqual(response.status, 200)
+        response, _ = self.request(httpd, "GET", "/api/session", headers={"Host": "other.example.com"})
+        self.assertEqual(response.status, 403)
+
+    def test_chunked_action_body_is_rejected_before_execution(self) -> None:
+        httpd = self.make_server()
+        httpd.jobs.start = mock.Mock(side_effect=AssertionError("operation must not run"))
+        response, payload = self.request(
+            httpd,
+            "POST",
+            "/api/actions/network-audit",
+            body=b"0\r\n\r\n",
+            headers={"Transfer-Encoding": "chunked", "X-HOMA-Request": "dashboard"},
+        )
+        self.assertEqual(response.status, 400)
+        self.assertEqual(json.loads(payload)["error"]["code"], "invalid_body")
+        httpd.jobs.start.assert_not_called()
+
+    def test_get_with_unexpected_body_is_rejected(self) -> None:
+        httpd = self.make_server()
+        response, payload = self.request(httpd, "GET", "/api/session", body=b"bad")
+        self.assertEqual(response.status, 400)
+        self.assertEqual(json.loads(payload)["error"]["code"], "invalid_body")
 
 
 if __name__ == "__main__":

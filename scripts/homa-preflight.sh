@@ -27,7 +27,11 @@ case "${1:-}" in
   -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
 esac
 
-REPORT="/tmp/homa-preflight-$(date +%Y%m%d-%H%M%S).txt"
+REPORT="$(mktemp "/tmp/homa-preflight-$(date +%Y%m%d-%H%M%S)-XXXXXX.txt")" || {
+  printf "Unable to create a private preflight report in /tmp.\n" >&2
+  exit 1
+}
+chmod 600 "$REPORT"
 exec > >(tee "$REPORT") 2>&1
 
 # ---------- pretty helpers ----------------------------------------------------
@@ -91,7 +95,7 @@ if have systemctl; then
   fi
 fi
 if [ "$PANEL_RUNNING" -eq 0 ] && have ps; then
-  P="$(ps aux 2>/dev/null | grep -i '[x]-ui' | head -n 3)"
+  P="$(pgrep -afi 'x-ui' 2>/dev/null | head -n 3)"
   if [ -n "$P" ]; then
     PANEL_RUNNING=1
     ok "x-ui process detected via ps"
@@ -102,7 +106,7 @@ if [ "$PANEL_RUNNING" -eq 0 ] && have ps; then
 fi
 
 [ -d "$XUI_DIR" ] && info "Panel dir present: $XUI_DIR"
-XR_BIN="$(ls "$XUI_DIR"/bin/xray-linux-* 2>/dev/null | head -n 1 || true)"
+XR_BIN="$(find "$XUI_DIR/bin" -maxdepth 1 -type f -name 'xray-linux-*' -print -quit 2>/dev/null)"
 if [ -n "$XR_BIN" ] && [ -x "$XR_BIN" ]; then
   info "Xray binary: $XR_BIN"
   info "Xray version: $("$XR_BIN" -version 2>/dev/null | head -n 1 || echo '?')"

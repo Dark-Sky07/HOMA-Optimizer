@@ -79,8 +79,14 @@ net.ipv4.tcp_timestamps = 1
 net.ipv4.tcp_sack = 1
 EOF
 
-  sysctl -p "$SYSCTL_FILE" >/dev/null 2>&1 || sysctl --system >/dev/null 2>&1 || true
-  touch "$ACTIVE_FLAG"
+  if ! sysctl -p "$SYSCTL_FILE" >/dev/null 2>&1 && ! sysctl --system >/dev/null 2>&1; then
+    warn "Client keepalive settings could not be applied to the running kernel."
+    return 1
+  fi
+  if ! touch "$ACTIVE_FLAG"; then
+    warn "Could not save the Client Guard state marker."
+    return 1
+  fi
 
   printf "\n"
   ok "Persistent Background Guard applied successfully!"

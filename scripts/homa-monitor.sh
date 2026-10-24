@@ -15,10 +15,10 @@ set -u
 
 # Color helpers
 if [ -t 1 ]; then
-  C_G=$'\033[0;32m'; C_Y=$'\033[0;33m'; C_R=$'\033[0;31m'
-  C_B=$'\033[1;36m'; C_W=$'\033[1;37m'; C_DIM=$'\033[2m'; C_0=$'\033[0m'
+  C_G=$'\033[0;32m'; C_R=$'\033[0;31m'
+  C_B=$'\033[1;36m'; C_W=$'\033[1;37m'; C_0=$'\033[0m'
 else
-  C_G=""; C_Y=""; C_R=""; C_B=""; C_W=""; C_DIM=""; C_0=""
+  C_G=""; C_R=""; C_B=""; C_W=""; C_0=""
 fi
 
 get_default_iface() {
@@ -105,7 +105,7 @@ run_monitor() {
 
     # Top client IPs connected
     local top_ips
-    top_ips="$(ss -ntu state established 2>/dev/null | awk 'NR>1 {split($5, a, ":"); if (a[1] != "127.0.0.1" && a[1] != "") print a[1]}' | sort | uniq -c | sort -nr | head -n 8)"
+    top_ips="$(ss -ntu state established 2>/dev/null | awk 'NR>1 {ip=$5; sub(/^\[/, "", ip); if (ip ~ /\]/) sub(/\]:[0-9]+$/, "", ip); else sub(/:[0-9]+$/, "", ip); if (ip != "127.0.0.1" && ip != "::1" && ip != "::ffff:127.0.0.1" && ip != "") print ip}' | sort | uniq -c | sort -nr | head -n 8)"
 
     if [ -n "$top_ips" ]; then
       while read -r count ip; do

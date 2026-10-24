@@ -17,9 +17,9 @@ set -u
 # Color helpers
 if [ -t 1 ]; then
   C_G=$'\033[0;32m'; C_Y=$'\033[0;33m'; C_R=$'\033[0;31m'
-  C_B=$'\033[1;36m'; C_W=$'\033[1;37m'; C_0=$'\033[0m'
+  C_B=$'\033[1;36m'; C_0=$'\033[0m'
 else
-  C_G=""; C_Y=""; C_R=""; C_B=""; C_W=""; C_0=""
+  C_G=""; C_Y=""; C_R=""; C_B=""; C_0=""
 fi
 
 section(){ printf "\n%s=== %s ===%s\n" "$C_B" "$1" "$C_0"; }
@@ -35,7 +35,10 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 section "Step 1: Updating Package Lists"
-apt-get update -y
+if ! apt-get update -y; then
+  bad "Package list update failed; no further changes were attempted."
+  exit 1
+fi
 ok "Package lists updated."
 
 section "Step 2: Installing Essential Tools & Dependencies"
@@ -57,12 +60,18 @@ ESSENTIAL_PKGS=(
 )
 
 info "Installing: ${ESSENTIAL_PKGS[*]}"
-apt-get install -y --no-install-recommends "${ESSENTIAL_PKGS[@]}"
+if ! apt-get install -y --no-install-recommends "${ESSENTIAL_PKGS[@]}"; then
+  bad "Essential package installation failed."
+  exit 1
+fi
 ok "Essential packages installed."
 
 section "Step 3: Upgrading System Packages"
 info "Running non-interactive distribution upgrade..."
-apt-get upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
+if ! apt-get upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"; then
+  bad "System package upgrade failed."
+  exit 1
+fi
 ok "System packages upgraded."
 
 section "Step 4: Cleaning Up Unused Packages & Cache"

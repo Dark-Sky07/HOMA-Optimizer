@@ -15,10 +15,10 @@ set -u
 
 # Color helpers
 if [ -t 1 ]; then
-  C_G=$'\033[0;32m'; C_Y=$'\033[0;33m'; C_R=$'\033[0;31m'
-  C_B=$'\033[1;36m'; C_W=$'\033[1;37m'; C_0=$'\033[0m'
+  C_G=$'\033[0;32m'; C_R=$'\033[0;31m'
+  C_B=$'\033[1;36m'; C_0=$'\033[0m'
 else
-  C_G=""; C_Y=""; C_R=""; C_B=""; C_W=""; C_0=""
+  C_G=""; C_R=""; C_B=""; C_0=""
 fi
 
 section(){ printf "\n%s=== %s ===%s\n" "$C_B" "$1" "$C_0"; }
@@ -42,17 +42,17 @@ printf "  %-24s %-12s %-8s %-10s %s\n" "Domain (SNI)" "Status" "TLS" "Handshake"
 printf "  %-24s %-12s %-8s %-10s %s\n" "------------------------" "------------" "--------" "----------" "-----------------------------"
 
 for item in "${SNI_CANDIDATES[@]}"; do
-  IFS='|' read -r domain desc <<< "$item"
+  IFS='|' read -r domain _ <<< "$item"
 
-  # Measure TCP connect and TLS handshake
-  start_ms="$(python3 -c 'import time; print(int(time.time()*1000))' 2>/dev/null || date +%s)"
-  
-  tls_info="$(echo | timeout 2.5 openssl s_client -connect "${domain}:443" -servername "${domain}" -alpn h2 2>&1 || true)"
-  end_ms="$(python3 -c 'import time; print(int(time.time()*1000))' 2>/dev/null || date +%s)"
+  # Measure TCP connect and TLS handshake.
+  start_ms="$(date +%s%3N)"
+  tls_info="$(echo | timeout 2.5 openssl s_client -connect "${domain}:443" -servername "${domain}" -alpn h2 2>&1)"
+  tls_status=$?
+  end_ms="$(date +%s%3N)"
   rtt=$(( end_ms - start_ms ))
 
   status="REACHABLE"
-  tls_ver="1.3"
+  tls_ver="unknown"
   rec="RECOMMENDED"
   color="$C_G"
 
@@ -62,8 +62,9 @@ for item in "${SNI_CANDIDATES[@]}"; do
     tls_ver="1.2"
   fi
 
-  if [ "$rtt" -gt 2500 ]; then
-    status="TIMEOUT"
+  if [ "$tls_status" -ne 0 ]; then
+    status="UNREACHABLE"
+    tls_ver="--"
     rec="NOT RECOMMENDED"
     color="$C_R"
     rtt="--"

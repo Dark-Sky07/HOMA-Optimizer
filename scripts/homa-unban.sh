@@ -27,6 +27,13 @@ notify_telegram() {
   fi
 }
 
+check_root() {
+  if [ "$(id -u)" -ne 0 ]; then
+    printf "%s[FAIL] Root privileges required. Run with sudo.%s\n" "$C_R" "$C_0"
+    return 1
+  fi
+}
+
 check_google() {
   local res
   res=$(curl -s4m 6 "https://www.google.com/search?q=homa+speedtest" -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36" 2>/dev/null || echo "")
@@ -139,6 +146,7 @@ run_diagnostics() {
 }
 
 fix_unban() {
+  check_root || return 1
   printf "\n%s=== EXECUTING AUTOMATIC UNBAN & HEALING ===%s\n" "$C_B" "$C_0"
   
   # Step 1: Force IPv4 Precedence (Fixes Google Captchas caused by dirty datacenter IPv6)
@@ -199,13 +207,18 @@ fix_unban() {
 }
 
 install_daemon() {
+  check_root || return 1
   printf "\n%s=== INSTALLING BACKGROUND AUTO-HEAL DAEMON ===%s\n" "$C_B" "$C_0"
 
   mkdir -p /opt/homa /opt/homa/scripts
   local src_script
   src_script="$(readlink -f "${BASH_SOURCE[0]}")"
-  cp -f "$src_script" "$SCRIPT_PATH"
-  cp -f "$src_script" "/opt/homa/scripts/homa-unban.sh" 2>/dev/null || true
+  if [ "$src_script" != "$SCRIPT_PATH" ]; then
+    cp -f "$src_script" "$SCRIPT_PATH" || return 1
+  fi
+  if [ "$src_script" != "/opt/homa/scripts/homa-unban.sh" ]; then
+    cp -f "$src_script" "/opt/homa/scripts/homa-unban.sh" || return 1
+  fi
   chmod +x "$SCRIPT_PATH" "/opt/homa/scripts/homa-unban.sh" 2>/dev/null || true
 
   cat <<EOF > "$SERVICE_FILE"
@@ -232,12 +245,19 @@ Persistent=true
 WantedBy=timers.target
 EOF
 
-  systemctl daemon-reload
-  systemctl enable --now homa-unban.timer >/dev/null 2>&1
+  if ! systemctl daemon-reload || ! systemctl enable --now homa-unban.timer >/dev/null 2>&1; then
+    printf "%s[FAIL] Could not enable homa-unban.timer.%s\n" "$C_R" "$C_0"
+    return 1
+  fi
+  if ! systemctl is-active --quiet homa-unban.timer 2>/dev/null; then
+    printf "%s[FAIL] homa-unban.timer is not active.%s\n" "$C_R" "$C_0"
+    return 1
+  fi
   printf "%s[OK] Auto-Heal Daemon is active! Runs automatically every 30 minutes in background.%s\n\n" "$C_G" "$C_0"
 }
 
 remove_daemon() {
+  check_root || return 1
   systemctl disable --now homa-unban.timer >/dev/null 2>&1 || true
   rm -f "$SERVICE_FILE" "$TIMER_FILE"
   systemctl daemon-reload

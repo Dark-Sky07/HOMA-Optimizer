@@ -25,7 +25,15 @@ notify_telegram() {
   fi
 }
 
+check_root() {
+  if [ "$(id -u)" -ne 0 ]; then
+    printf "%s[FAIL] Root privileges required. Run with sudo.%s\n" "$C_R" "$C_0"
+    return 1
+  fi
+}
+
 check_and_heal() {
+  check_root || return 1
   local timestamp
   timestamp=$(date "+%Y-%m-%d %H:%M:%S")
 
@@ -77,13 +85,18 @@ watchdog_loop() {
 }
 
 enable_watchdog() {
+  check_root || return 1
   printf "\n%s=== ENABLING 24/7 AUTO-HEALING WATCHDOG ===%s\n" "$C_B" "$C_0"
 
   mkdir -p /opt/homa /opt/homa/scripts
   local src_script
   src_script="$(readlink -f "${BASH_SOURCE[0]}")"
-  cp -f "$src_script" "$SCRIPT_PATH"
-  cp -f "$src_script" "/opt/homa/scripts/homa-watchdog.sh" 2>/dev/null || true
+  if [ "$src_script" != "$SCRIPT_PATH" ]; then
+    cp -f "$src_script" "$SCRIPT_PATH" || return 1
+  fi
+  if [ "$src_script" != "/opt/homa/scripts/homa-watchdog.sh" ]; then
+    cp -f "$src_script" "/opt/homa/scripts/homa-watchdog.sh" || return 1
+  fi
   chmod +x "$SCRIPT_PATH" "/opt/homa/scripts/homa-watchdog.sh" 2>/dev/null || true
   touch "$LOG_FILE"
 
@@ -104,12 +117,19 @@ StandardError=journal
 WantedBy=multi-user.target
 EOF
 
-  systemctl daemon-reload
-  systemctl enable --now homa-watchdog.service >/dev/null 2>&1 || systemctl restart homa-watchdog.service >/dev/null 2>&1 || true
+  if ! systemctl daemon-reload || ! systemctl enable --now homa-watchdog.service >/dev/null 2>&1; then
+    printf "%s[FAIL] Could not enable homa-watchdog.service.%s\n" "$C_R" "$C_0"
+    return 1
+  fi
+  if ! systemctl is-active --quiet homa-watchdog.service 2>/dev/null; then
+    printf "%s[FAIL] homa-watchdog.service is not active.%s\n" "$C_R" "$C_0"
+    return 1
+  fi
   printf "%s[OK] Watchdog is active! Checking panel & core health every 20 seconds.%s\n" "$C_G" "$C_0"
 }
 
 disable_watchdog() {
+  check_root || return 1
   systemctl disable --now homa-watchdog.service >/dev/null 2>&1 || true
   rm -f "$SERVICE_FILE"
   systemctl daemon-reload

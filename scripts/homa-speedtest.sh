@@ -14,10 +14,10 @@ set -u
 
 # Color helpers
 if [ -t 1 ]; then
-  C_G=$'\033[0;32m'; C_Y=$'\033[0;33m'; C_R=$'\033[0;31m'
+  C_G=$'\033[0;32m'; C_Y=$'\033[0;33m'
   C_B=$'\033[1;36m'; C_W=$'\033[1;37m'; C_0=$'\033[0m'
 else
-  C_G=""; C_Y=""; C_R=""; C_B=""; C_W=""; C_0=""
+  C_G=""; C_Y=""; C_B=""; C_W=""; C_0=""
 fi
 
 section(){ printf "\n%s=== %s ===%s\n" "$C_B" "$1" "$C_0"; }
@@ -28,14 +28,18 @@ run_speedtest() {
 
   if have speedtest; then
     printf "  Running Official Ookla Speedtest...\n\n"
-    speedtest --accept-license --accept-gdpr || true
-    return
+    if speedtest --accept-license --accept-gdpr; then
+      return 0
+    fi
+    printf "  Official client failed; using the nonintrusive CDN fallback.\n\n"
   fi
 
   if have speedtest-cli; then
     printf "  Running Speedtest-CLI...\n\n"
-    speedtest-cli --secure --simple || true
-    return
+    if speedtest-cli --secure --simple; then
+      return 0
+    fi
+    printf "  Speedtest-CLI failed; using the nonintrusive CDN fallback.\n\n"
   fi
 
   printf "  Testing network download throughput from global and regional CDN nodes...\n\n"
@@ -44,9 +48,8 @@ run_speedtest() {
 
   TEST_NODES=(
     "Istanbul CDN (Regional)|https://speed.cloudflare.com/__down?bytes=50000000|50 MB"
-    "Frankfurt (Europe Hub)|https://nbg1-speed.hetzner.com/100MB.bin|50 MB"
-    "Amsterdam (Global Transit)|https://ash-speed.hetzner.com/100MB.bin|50 MB"
-    "Iran Edge Mirror (Arvan)|https://arvancloud.ir/favicon.ico|5 MB"
+    "Frankfurt (Europe Hub)|https://nbg1-speed.hetzner.com/100MB.bin|100 MB"
+    "Amsterdam (Global Transit)|https://ash-speed.hetzner.com/100MB.bin|100 MB"
   )
 
   for node in "${TEST_NODES[@]}"; do
@@ -57,14 +60,18 @@ run_speedtest() {
     
     local dl_bytes=0
     # Download with curl, 8s timeout, pipe to /dev/null
-    dl_bytes="$(curl -s4m 8 -w '%{size_download}' -o /dev/null "$url" 2>/dev/null || echo "0")"
+    dl_bytes="$(curl -s4m 8 -w '%{size_download}' -o /dev/null "$url" 2>/dev/null)" || dl_bytes=0
+    if ! [[ "$dl_bytes" =~ ^[0-9]+$ ]]; then
+      dl_bytes=0
+    fi
     end_time="$(python3 -c 'import time; print(time.time())' 2>/dev/null || date +%s)"
-    
+
     elapsed_sec="$(python3 -c "print(max(0.1, $end_time - $start_time))" 2>/dev/null || echo "1.0")"
-    
+
     if [ "$dl_bytes" -gt 100000 ]; then
       speed_mbps="$(python3 -c "print(round(($dl_bytes * 8) / ($elapsed_sec * 1000000), 1))" 2>/dev/null || echo "--")"
-      local time_fmt="$(python3 -c "print(round($elapsed_sec, 2))" 2>/dev/null || echo "--")s"
+      local time_fmt
+      time_fmt="$(python3 -c "print(round($elapsed_sec, 2))" 2>/dev/null || echo "--")s"
       printf "  %-30s %-16s %-14s %s%s Mbps%s\n" "$name" "$size_label" "$time_fmt" "$C_G" "$speed_mbps" "$C_0"
     else
       printf "  %-30s %-16s %-14s %sOffline / Blocked%s\n" "$name" "$size_label" "--" "$C_Y" "$C_0"

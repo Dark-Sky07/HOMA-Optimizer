@@ -12,10 +12,10 @@ set -u
 
 # Color helpers
 if [ -t 1 ]; then
-  C_G=$'\033[0;32m'; C_Y=$'\033[0;33m'; C_R=$'\033[0;31m'
+  C_G=$'\033[0;32m'; C_Y=$'\033[0;33m'
   C_B=$'\033[1;36m'; C_W=$'\033[1;37m'; C_0=$'\033[0m'
 else
-  C_G=""; C_Y=""; C_R=""; C_B=""; C_W=""; C_0=""
+  C_G=""; C_Y=""; C_B=""; C_W=""; C_0=""
 fi
 
 section(){ printf "\n%s=== %s ===%s\n" "$C_B" "$1" "$C_0"; }
@@ -50,18 +50,24 @@ scan_ips() {
     IFS='|' read -r ip group <<< "$item"
 
     local start_time end_time diff_ms
-    start_time="$(python3 -c 'import time; print(int(time.time()*1000))' 2>/dev/null || date +%s)"
-    
+    start_time="$(date +%s%3N)"
+
     if timeout 1.0 bash -c "(echo >/dev/tcp/$ip/443) >/dev/null 2>&1"; then
-      end_time="$(python3 -c 'import time; print(int(time.time()*1000))' 2>/dev/null || date +%s)"
+      end_time="$(date +%s%3N)"
       diff_ms=$(( end_time - start_time ))
       results+=("${diff_ms}|${ip}|${group}")
     fi
   done
 
-  # Sort by latency ascending
-  IFS=$'\n' sorted=($(sort -n <<<"${results[*]}"))
-  unset IFS
+  # Sort by latency ascending without globbing or word-splitting results.
+  local sorted=()
+  if [ "${#results[@]}" -gt 0 ]; then
+    mapfile -t sorted < <(printf '%s\n' "${results[@]}" | sort -n)
+  fi
+  if [ "${#sorted[@]}" -eq 0 ]; then
+    printf "\n  No reachable Cloudflare candidates were found; no IP is recommended.\n"
+    return 1
+  fi
 
   local count=0
   for res in "${sorted[@]}"; do
@@ -78,7 +84,7 @@ scan_ips() {
 
   printf "\n%s=== HOW TO USE IN V2RAY / 3X-UI ===%s\n" "$C_B" "$C_0"
   printf "  1. In v2rayNG / V2Box client configuration:\n"
-  printf "     * Set %sAddress (IP)%s to any of the Clean IPs above (e.g. %s)\n" "$C_W" "$C_0" "${sorted[0]:-104.16.132.229}"
+  printf "     * Set %sAddress (IP)%s to any of the Clean IPs above (e.g. %s)\n" "$C_W" "$C_0" "${sorted[0]}"
   printf "     * Set %sHost / SNI%s to your Cloudflare domain (e.g. cdn.yourdomain.com)\n" "$C_W" "$C_0"
   printf "     * Set %sPort%s to 2096, 2053, 2083, or 443 (Cloudflare HTTPS ports)\n" "$C_W" "$C_0"
   printf "  2. Traffic bypasses domestic ISP blocking cleanly without touching your server IP!\n\n"

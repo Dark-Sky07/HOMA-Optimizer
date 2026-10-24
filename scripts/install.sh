@@ -110,28 +110,39 @@ if [ -z "$PACKAGE_ROOT" ]; then
 
   URLS=()
   if [ -n "$LATEST_TAG" ] && [ "$LATEST_TAG" != "latest" ]; then
-    URLS+=("https://github.com/${REPO_NAME}/archive/refs/tags/${LATEST_TAG}.tar.gz")
+    if [[ "$LATEST_TAG" =~ ^[A-Za-z0-9._-]+$ ]]; then
+      URLS+=("https://github.com/${REPO_NAME}/archive/refs/tags/${LATEST_TAG}.tar.gz")
+    else
+      warn "Ignoring an invalid release tag received from GitHub."
+    fi
   fi
   URLS+=("https://github.com/${REPO_NAME}/archive/refs/heads/main.tar.gz")
 
   DOWNLOAD_OK=0
   for url in "${URLS[@]}"; do
     printf "Downloading: %s\n" "$url"
+    # Never mix files from a partial release with the fallback archive.
+    CANDIDATE_DIR="${TMP_DL}/candidate"
+    rm -rf "$CANDIDATE_DIR"
+    mkdir -p "$CANDIDATE_DIR"
     if command -v curl >/dev/null 2>&1; then
-      if curl -fsSL --max-time 120 "$url" | tar -xz -C "$TMP_DL" --strip-components=1 2>/dev/null; then
+      if curl -fsSL --max-time 120 "$url" | tar -xz -C "$CANDIDATE_DIR" --strip-components=1 --no-same-owner --no-same-permissions 2>/dev/null; then
         DOWNLOAD_OK=1
-        break
       fi
-    elif wget -qO- "$url" | tar -xz -C "$TMP_DL" --strip-components=1 2>/dev/null; then
+    elif wget -qO- --timeout=120 "$url" | tar -xz -C "$CANDIDATE_DIR" --strip-components=1 --no-same-owner --no-same-permissions 2>/dev/null; then
       DOWNLOAD_OK=1
+    fi
+    if [ "$DOWNLOAD_OK" -eq 1 ] && [ -f "$CANDIDATE_DIR/install.sh" ] && \
+       [ -f "$CANDIDATE_DIR/scripts/homa-menu.sh" ] && [ -f "$CANDIDATE_DIR/panel/server.py" ]; then
+      PACKAGE_ROOT="$CANDIDATE_DIR"
       break
     fi
+    DOWNLOAD_OK=0
   done
-  if [ "$DOWNLOAD_OK" -ne 1 ] || [ ! -f "${TMP_DL}/scripts/homa-menu.sh" ]; then
-    fail "Could not download a valid HOMA release from GitHub."
+  if [ "$DOWNLOAD_OK" -ne 1 ] || [ -z "$PACKAGE_ROOT" ]; then
+    fail "Could not download a complete HOMA release from GitHub."
     exit 1
   fi
-  PACKAGE_ROOT="$TMP_DL"
 else
   printf "Installing from local package: %s\n" "$PACKAGE_ROOT"
 fi
@@ -142,6 +153,10 @@ TARGET_SCRIPTS_DIR="$(cd "$SCRIPTS_DIR" && pwd)"
 SOURCE_PANEL_DIR="$(cd "${PACKAGE_ROOT}/panel" && pwd)"
 TARGET_PANEL_DIR="$(cd "$PANEL_DIR" && pwd)"
 chmod 700 "${INSTALL_DIR}/backup" "${INSTALL_DIR}/backups"
+find "${INSTALL_DIR}/backups" -maxdepth 1 -type f -name 'homa-panel-backup-*.tar.gz' -exec chmod 600 {} +
+if [ -f "${INSTALL_DIR}/telegram.conf" ]; then
+  chmod 600 "${INSTALL_DIR}/telegram.conf"
+fi
 
 for file in "${SCRIPT_FILES[@]}"; do
   source_file="${PACKAGE_ROOT}/scripts/${file}"
@@ -164,7 +179,25 @@ fi
 if [ "$SOURCE_PANEL_DIR" != "$TARGET_PANEL_DIR" ]; then
   install -m 0755 "${PACKAGE_ROOT}/panel/server.py" "${PANEL_DIR}/server.py"
   install -m 0644 "${PACKAGE_ROOT}/panel/homa-panel.service" "${PANEL_DIR}/homa-panel.service"
-  cp -R "${PACKAGE_ROOT}/panel/static/." "${PANEL_DIR}/static/"
+  # Replace static assets as a set so files removed by a release do not linger.
+  STATIC_STAGE="${PANEL_DIR}/.static-staging"
+  STATIC_OLD="${PANEL_DIR}/.static-previous"
+  rm -rf "$STATIC_STAGE" "$STATIC_OLD"
+  cp -R "${PACKAGE_ROOT}/panel/static" "$STATIC_STAGE"
+  if ! mv "${PANEL_DIR}/static" "$STATIC_OLD"; then
+    rm -rf "$STATIC_STAGE"
+    fail "Could not stage the previous graphical assets; the active set was left in place."
+    exit 1
+  fi
+  if ! mv "$STATIC_STAGE" "${PANEL_DIR}/static"; then
+    if ! mv "$STATIC_OLD" "${PANEL_DIR}/static"; then
+      fail "CRITICAL: Could not activate new assets or restore ${STATIC_OLD}."
+      exit 1
+    fi
+    fail "Could not activate the new graphical assets; the previous set was restored."
+    exit 1
+  fi
+  rm -rf "$STATIC_OLD"
 fi
 chown -R root:root "$PANEL_DIR"
 find "$PANEL_DIR" -type d -exec chmod 0755 {} +

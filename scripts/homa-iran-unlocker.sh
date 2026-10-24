@@ -54,22 +54,65 @@ fix_docker() {
     info "Saved backup to $DOCKER_BAK"
   fi
 
-  info "Injecting verified sanction-free Docker registry mirrors..."
-  cat <<'EOF' > "$DOCKER_DAEMON"
-{
-  "registry-mirrors": [
-    "https://docker.arvancloud.ir",
-    "https://docker.iranserver.com",
-    "https://registry.docker.ir",
-    "https://mirror.gcr.io"
-  ],
-  "log-driver": "json-file",
-  "log-opts": {
-    "max-size": "50m",
-    "max-file": "3"
-  }
-}
-EOF
+  info "Merging HOMA registry mirrors into Docker configuration..."
+  if ! python3 - "$DOCKER_DAEMON" <<'PY'; then
+import json
+import os
+import stat
+import sys
+import tempfile
+from pathlib import Path
+
+path = Path(sys.argv[1])
+tmp_name = ""
+try:
+    config = {}
+    mode = 0o644
+    owner = (-1, -1)
+    if path.exists():
+        raw = path.read_text(encoding="utf-8")
+        if raw.strip():
+            config = json.loads(raw)
+        if not isinstance(config, dict):
+            raise ValueError("Docker daemon configuration must be a JSON object")
+        metadata = path.stat()
+        mode = stat.S_IMODE(metadata.st_mode)
+        owner = (metadata.st_uid, metadata.st_gid)
+
+    config["registry-mirrors"] = [
+        "https://docker.arvancloud.ir",
+        "https://docker.iranserver.com",
+        "https://registry.docker.ir",
+        "https://mirror.gcr.io",
+    ]
+    config["log-driver"] = "json-file"
+    log_options = config.get("log-opts", {})
+    if not isinstance(log_options, dict):
+        log_options = {}
+    log_options.update({"max-size": "50m", "max-file": "3"})
+    config["log-opts"] = log_options
+
+    descriptor, tmp_name = tempfile.mkstemp(prefix=".homa-daemon-", dir=path.parent)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+        json.dump(config, handle, indent=2, ensure_ascii=False)
+        handle.write("\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.chmod(tmp_name, mode)
+    if hasattr(os, "geteuid") and os.geteuid() == 0 and owner != (-1, -1):
+        os.chown(tmp_name, *owner)
+    os.replace(tmp_name, path)
+    tmp_name = ""
+except Exception as exc:
+    print(f"HOMA: refusing to replace invalid Docker configuration: {exc}", file=sys.stderr)
+    sys.exit(1)
+finally:
+    if tmp_name:
+        Path(tmp_name).unlink(missing_ok=True)
+PY
+    bad "Docker configuration was not changed because the existing JSON could not be merged safely."
+    return 1
+  fi
 
   if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q "docker.service"; then
     info "Restarting Docker daemon..."
@@ -252,12 +295,31 @@ rollback_sanctions_dns() {
 apply_all() {
   check_root
   section "★ APPLYING ALL IRAN SERVER SANCTIONS & DOWNLOAD ACCELERATORS"
-  fix_docker
-  fix_github
-  fix_apt
-  fix_sanctions_dns
+  local failures=0
+  fix_docker || failures=$((failures + 1))
+  fix_github || failures=$((failures + 1))
+  fix_apt || failures=$((failures + 1))
+  fix_sanctions_dns || failures=$((failures + 1))
+  if [ "$failures" -gt 0 ]; then
+    bad "$failures Iran accelerator module(s) failed."
+    return 1
+  fi
   ok "All Iran server accelerators activated!"
   printf "\n"
+}
+
+rollback_all() {
+  check_root
+  local failures=0
+  rollback_docker || failures=$((failures + 1))
+  rollback_github || failures=$((failures + 1))
+  rollback_apt || failures=$((failures + 1))
+  rollback_sanctions_dns || failures=$((failures + 1))
+  if [ "$failures" -gt 0 ]; then
+    bad "$failures Iran accelerator rollback module(s) failed."
+    return 1
+  fi
+  ok "All Iran accelerators rolled back cleanly."
 }
 
 menu() {
@@ -283,11 +345,7 @@ menu() {
       4) fix_apt; read -r -p "Press [Enter] to return..." _ || true ;;
       5) fix_sanctions_dns; read -r -p "Press [Enter] to return..." _ || true ;;
       r|R)
-        rollback_docker
-        rollback_github
-        rollback_apt
-        rollback_sanctions_dns
-        ok "All Iran accelerators rolled back cleanly."
+        rollback_all
         read -r -p "Press [Enter] to return..." _ || true
         ;;
       0) break ;;
@@ -313,10 +371,7 @@ case "${1:-}" in
     fix_sanctions_dns
     ;;
   --rollback|rollback)
-    rollback_docker
-    rollback_github
-    rollback_apt
-    rollback_sanctions_dns
+    rollback_all
     ;;
   *)
     menu

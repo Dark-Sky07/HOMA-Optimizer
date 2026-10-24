@@ -7,7 +7,7 @@
   **Rise Above Limits · سرورت را به اوج ببر**
 
   <p>
-    <img src="https://img.shields.io/badge/Release-v5.2.0-e5b45b.svg?style=for-the-badge&logo=github" alt="Release v5.2.0" />
+    <img src="https://img.shields.io/badge/Release-v5.2.1-e5b45b.svg?style=for-the-badge&logo=github" alt="Release v5.2.1" />
     <img src="https://img.shields.io/badge/Web%20Panel-FA%20%2B%20EN-72d3aa.svg?style=for-the-badge" alt="Bilingual Web Panel" />
     <img src="https://img.shields.io/badge/OS-Ubuntu%20%7C%20Debian-orange.svg?style=for-the-badge&logo=linux" alt="OS Support" />
     <img src="https://img.shields.io/badge/Runtime-Bash%20%2B%20Python%203-informational.svg?style=for-the-badge" alt="Runtime" />
@@ -23,7 +23,7 @@
               |_| |_|\___/|_|  |_/_/   \_\
 
                VPS OPTIMIZER & COMMAND CENTER
-                    Version 5.2 · Rise Above Limits
+                    Version 5.2.1 · Rise Above Limits
 ========================================================================
 ```
 
@@ -50,7 +50,7 @@
 ### هستهٔ بهینه‌سازی و مدیریت سرور
 
 - تنظیم BBR، FQ، بافرهای TCP/UDP، Keepalive و سازگاری مسیر اپراتورهای موبایل.
-- زمان‌بند ساعات اوج، بهینه‌سازی حافظه و محدودیت منابع، Smart Swap و نگهداری زمان‌بندی‌شده.
+- زمان‌بند ساعات اوج با ارزیابی هر ۱۵ دقیقه (۲۰:۰۰ تا ۰۱:۳۰ به وقت تهران)، بهینه‌سازی حافظه و محدودیت منابع، Smart Swap و نگهداری زمان‌بندی‌شده.
 - ابزارهای Domain/SNI، اسکن IP لبهٔ Cloudflare، DNS، Iran Unlocker و Bridge Doctor.
 - Fail2ban، Port Doctor، مانیتورینگ زنده، هشدار تلگرام و نگهبان بازیابی پنل/Xray.
 - پشتیبان‌گیری و Rollback ماژول‌های پشتیبانی‌شده از طریق منوی ترمینال.
@@ -138,6 +138,15 @@ sudo homa-panel --read-only
 
 در این حالت ابزارهای تشخیصی فقط‌خواندنی در دسترس‌اند و همهٔ عملیات تغییردهندهٔ سرور در بک‌اند مسدود می‌شوند؛ صرفاً مخفی شدن دکمه در رابط کافی نیست.
 
+روی رابط غیرمحلی، حالت فقط‌خواندنی نیز به‌صورت پیش‌فرض به توکن نیاز دارد. اجرای عمومی بدون توکن فقط برای demo ایزوله و با opt-in صریح و Allowlist مربوط به Host ممکن است:
+
+```bash
+sudo homa-panel --host 0.0.0.0 --read-only \
+  --allow-public-read-only --allowed-host demo.example.com
+```
+
+این حالت برای production توصیه نمی‌شود. همهٔ درخواست‌ها، از جمله صفحهٔ اصلی و Session API، با Host نامعتبر رد می‌شوند تا مسیر DNS rebinding به پنل محلی بسته بماند. برای چند hostname می‌توانید `--allowed-host` را تکرار کنید یا `HOMA_PANEL_ALLOWED_HOSTS` را با مقادیر جداشده با کاما تنظیم کنید.
+
 ---
 
 ## 🧭 منوی ترمینال
@@ -203,6 +212,9 @@ DIAGNOSTICS & MANAGEMENT
 | **احراز هویت** | توکن در `/etc/homa/panel.env` با مجوز `600` نگهداری می‌شود و مقایسهٔ آن Constant-Time است. |
 | **CSRF / XSS** | درخواست‌های تغییر به Header مخصوص Same-Origin و تأیید صریح نیاز دارند؛ CSP و Security Headerها نیز فعال‌اند. |
 | **دسترسی root** | عملیات تغییردهنده فقط زمانی اجرا می‌شوند که سرویس پنل با root در حال اجرا باشد. مانیتورینگ بدون root نیز ممکن است. |
+| **Host و Request Framing** | پنل محلی بدون توکن فقط Hostهای loopback را می‌پذیرد؛ Demo عمومی به Allowlist صریح نیاز دارد. Body غیرمنتظره، Chunked encoding و Content-Length تکراری رد می‌شوند. |
+| **مهلت عملیات** | عملیات وقت‌گیر ابتدا با SIGTERM و سپس با SIGKILL به کل Process Group متوقف می‌شوند تا Child سرکوب‌نشده باقی نماند. |
+| **بکاپ و Telegram** | دایرکتوری بکاپ `700` و آرشیوها/تنظیمات حساس `600` هستند. Restore ورودی عددی را Validate می‌کند و Telegram config هرگز به‌عنوان Shell اجرا نمی‌شود. |
 
 ---
 
@@ -236,7 +248,7 @@ HOMA-Optimizer/
 
 1. اجرای عملیات ثابت و Allowlistشدهٔ `homa-menu.sh --update --from-panel`؛ هیچ URL یا فرمان دلخواهی از مرورگر پذیرفته نمی‌شود.
 2. دریافت آخرین Release رسمی `Dark-Sky07/HOMA-Optimizer` و در صورت در دسترس نبودن آن، شاخهٔ `main` همان مخزن.
-3. نصب هم‌زمان اسکریپت‌ها و فایل‌های پنل با حفظ `/etc/homa/panel.env`، توکن دسترسی و سایر تنظیمات.
+3. نصب هم‌زمان اسکریپت‌ها و فایل‌های پنل با حفظ `/etc/homa/panel.env`، توکن دسترسی و سایر تنظیمات؛ هر دانلود در دایرکتوری تازه انجام می‌شود و Assetهای قدیمیِ حذف‌شده از release باقی نمی‌مانند.
 4. ثبت نتیجهٔ عملیات و سپس Restart سرویس `homa-panel.service` پس از تأخیر کوتاه؛ رابط به‌صورت خودکار منتظر بازگشت سرویس می‌ماند و صفحه را تازه می‌کند.
 
 این عملیات به root نیاز دارد و در حالت فقط‌خواندنی مسدود است. اگر پنل خارج از systemd اجرا شود، Restart خودکار انجام نمی‌شود؛ در این حالت پس از نصب موفق، `homa-panel` را دستی راه‌اندازی مجدد کنید. توکن در خروجی عملیات به‌روزرسانی چاپ نمی‌شود.

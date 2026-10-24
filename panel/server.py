@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-VERSION = "5.2.0"
+VERSION = "5.2.1"
 PANEL_DIR = Path(__file__).resolve().parent
 STATIC_DIR = PANEL_DIR / "static"
 INSTALL_ROOT = PANEL_DIR.parent
@@ -38,6 +38,8 @@ SCRIPTS_DIR = INSTALL_ROOT / "scripts"
 MAX_BODY_BYTES = 4096
 MAX_JOBS = 60
 MAX_OUTPUT_CHARS = 300_000
+PROCESS_STOP_GRACE = 3.0
+REQUEST_TIMEOUT = 20
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 ACTIONS: tuple[dict[str, Any], ...] = (
@@ -479,6 +481,7 @@ class JobManager:
                 "lines": [],
                 "output_chars": 0,
                 "truncated": False,
+                "_timed_out": False,
             }
             if action.get("restart_on_success"):
                 job["restart_scheduled"] = False
@@ -556,6 +559,8 @@ class JobManager:
         env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:" + env.get("PATH", "")
         process: subprocess.Popen[str] | None = None
         timer: threading.Timer | None = None
+        kill_timer: threading.Timer | None = None
+        finished = threading.Event()
         try:
             process = subprocess.Popen(
                 ["/bin/bash", str(script), *action["args"]],
@@ -571,40 +576,69 @@ class JobManager:
             )
 
             def stop_on_timeout() -> None:
-                if process and process.poll() is None:
-                    self._append(job, "\nHOMA · Operation time limit reached; stopping safely.\n")
+                nonlocal kill_timer
+                with self._lock:
+                    if finished.is_set() or job["status"] != "running":
+                        return
+                    job["_timed_out"] = True
+                self._append(job, "\nHOMA · Operation time limit reached; stopping safely.\n")
+                try:
+                    os.killpg(process.pid, signal.SIGTERM)
+                except (ProcessLookupError, PermissionError):
+                    pass
+
+                def force_stop() -> None:
+                    if finished.is_set():
+                        return
                     try:
-                        os.killpg(process.pid, signal.SIGTERM)
+                        # A child can ignore SIGTERM or inherit the output pipe
+                        # after its parent exits. Always escalate the whole group.
+                        os.killpg(process.pid, signal.SIGKILL)
                     except (ProcessLookupError, PermissionError):
                         pass
+
+                kill_timer = threading.Timer(PROCESS_STOP_GRACE, force_stop)
+                kill_timer.daemon = True
+                kill_timer.start()
 
             timer = threading.Timer(action["timeout"], stop_on_timeout)
             timer.daemon = True
             timer.start()
-            assert process.stdout is not None
+            if process.stdout is None:
+                raise RuntimeError("Unable to capture operation output")
             for line in process.stdout:
                 self._append(job, line)
             exit_code = process.wait()
-            if exit_code == 0 and action.get("restart_on_success"):
+            with self._lock:
+                finished.set()
+                timed_out = bool(job["_timed_out"])
+            if exit_code == 0 and not timed_out and action.get("restart_on_success"):
                 self._schedule_panel_restart(job)
             with self._lock:
-                job["exit_code"] = exit_code
-                job["status"] = "succeeded" if exit_code == 0 else "failed"
+                job["exit_code"] = -signal.SIGTERM if timed_out and exit_code == 0 else exit_code
+                job["status"] = "succeeded" if exit_code == 0 and not timed_out else "failed"
         except Exception as exc:  # The API must preserve a useful audit trail.
             self._append(job, f"HOMA · Unable to execute operation: {exc}\n")
             with self._lock:
                 job["status"] = "failed"
                 job["exit_code"] = -1
         finally:
+            finished.set()
             if timer:
                 timer.cancel()
-            if process and process.stdout:
-                process.stdout.close()
+            if kill_timer:
+                kill_timer.cancel()
             if process and process.poll() is None:
                 try:
-                    os.killpg(process.pid, signal.SIGTERM)
+                    os.killpg(process.pid, signal.SIGKILL)
                 except (ProcessLookupError, PermissionError):
                     pass
+                try:
+                    process.wait(timeout=PROCESS_STOP_GRACE)
+                except subprocess.SubprocessError:
+                    pass
+            if process and process.stdout:
+                process.stdout.close()
             self._append(job, "\nHOMA · Operation finished.\n")
             with self._lock:
                 job["finished_at"] = utc_now()
@@ -613,6 +647,7 @@ class JobManager:
 class HomaHTTPServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
+    request_queue_size = 64
 
     def __init__(self, address: tuple[str, int], handler: type[BaseHTTPRequestHandler], config: argparse.Namespace):
         super().__init__(address, handler)
@@ -625,6 +660,10 @@ class HomaHandler(BaseHTTPRequestHandler):
     server: HomaHTTPServer
     protocol_version = "HTTP/1.1"
 
+    def setup(self) -> None:
+        super().setup()
+        self.connection.settimeout(REQUEST_TIMEOUT)
+
     def log_message(self, message: str, *args: Any) -> None:
         sys.stderr.write(f"[homa-panel] {self.address_string()} {message % args}\n")
 
@@ -635,7 +674,8 @@ class HomaHandler(BaseHTTPRequestHandler):
         self.send_header(
             "Content-Security-Policy",
             "default-src 'self'; img-src 'self' data:; style-src 'self'; "
-            "script-src 'self'; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'",
+            "script-src 'self'; connect-src 'self'; font-src 'self'; object-src 'none'; "
+            "base-uri 'none'; form-action 'self'",
         )
         super().end_headers()
 
@@ -648,6 +688,50 @@ class HomaHandler(BaseHTTPRequestHandler):
         if auth.startswith("Bearer "):
             supplied = auth[7:]
         return hmac.compare_digest(supplied.encode("utf-8"), token.encode("utf-8"))
+
+    def _valid_host(self) -> bool:
+        """Prevent DNS rebinding into token-less local or explicit demo panels."""
+        host_headers = self.headers.get_all("Host") or []
+        if len(host_headers) != 1:
+            return False
+        raw_host = host_headers[0].strip()
+        if not raw_host or any(char.isspace() for char in raw_host) or any(char in raw_host for char in "/\\@"):
+            return False
+        try:
+            parsed = urlsplit(f"http://{raw_host}")
+            hostname = parsed.hostname
+            parsed.port  # Validate the port even though the allowlist only uses names.
+        except ValueError:
+            return False
+        if not hostname or parsed.username is not None or parsed.path or parsed.query or parsed.fragment:
+            return False
+        hostname = hostname.lower().rstrip(".")
+        if not non_loopback(hostname):
+            return True
+
+        allowed_hosts = getattr(self.server.config, "allowed_hosts", [])
+        for raw_pattern in allowed_hosts:
+            pattern = raw_pattern.strip().lower().rstrip(".")
+            if not pattern:
+                continue
+            if pattern.startswith(("*.", ".")):
+                suffix = pattern[1:] if pattern.startswith("*.") else pattern
+                if hostname.endswith(suffix) and len(hostname) > len(suffix):
+                    return True
+            elif hostname == pattern:
+                return True
+
+        # A strong token blocks rebinding on its own. Without a token, only
+        # loopback names or an explicit public-host allowlist are acceptable.
+        return bool(self.server.config.token) and not allowed_hosts
+
+    def _has_unexpected_body(self) -> bool:
+        lengths = self.headers.get_all("Content-Length") or []
+        return bool(
+            self.headers.get("Transfer-Encoding") is not None
+            or len(lengths) > 1
+            or (lengths and lengths[0].strip() != "0")
+        )
 
     def _send_json(self, payload: Any, status: int = 200, body: bool = True) -> None:
         encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -737,6 +821,12 @@ class HomaHandler(BaseHTTPRequestHandler):
             self.wfile.write(content)
 
     def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
+        if not self._valid_host():
+            self._error(HTTPStatus.FORBIDDEN, "invalid_host", "The request Host is not allowed.")
+            return
+        if self._has_unexpected_body():
+            self._error(HTTPStatus.BAD_REQUEST, "invalid_body", "GET requests must not include a body.")
+            return
         path = urlsplit(self.path).path
         if path.startswith("/api/"):
             self._api_get(path)
@@ -744,6 +834,12 @@ class HomaHandler(BaseHTTPRequestHandler):
             self._serve_static(path)
 
     def do_HEAD(self) -> None:  # noqa: N802
+        if not self._valid_host():
+            self._error(HTTPStatus.FORBIDDEN, "invalid_host", "The request Host is not allowed.")
+            return
+        if self._has_unexpected_body():
+            self._error(HTTPStatus.BAD_REQUEST, "invalid_body", "HEAD requests must not include a body.")
+            return
         path = urlsplit(self.path).path
         if path.startswith("/api/"):
             self._api_get(path, body=False)
@@ -751,6 +847,9 @@ class HomaHandler(BaseHTTPRequestHandler):
             self._serve_static(path, body=False)
 
     def do_POST(self) -> None:  # noqa: N802
+        if not self._valid_host():
+            self._error(HTTPStatus.FORBIDDEN, "invalid_host", "The request Host is not allowed.")
+            return
         path = urlsplit(self.path).path
         if not path.startswith("/api/actions/"):
             self._error(HTTPStatus.NOT_FOUND, "not_found", "API endpoint not found.")
@@ -769,8 +868,12 @@ class HomaHandler(BaseHTTPRequestHandler):
         if action_id not in ACTION_MAP:
             self._error(HTTPStatus.NOT_FOUND, "action_not_found", "Unknown operation.")
             return
+        length_headers = self.headers.get_all("Content-Length") or []
+        if self.headers.get("Transfer-Encoding") is not None or len(length_headers) != 1:
+            self._error(HTTPStatus.BAD_REQUEST, "invalid_body", "A single Content-Length header is required.")
+            return
         try:
-            length = int(self.headers.get("Content-Length", "0"))
+            length = int(length_headers[0])
         except ValueError:
             length = 0
         if length <= 0 or length > MAX_BODY_BYTES:
@@ -821,12 +924,32 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=os.environ.get("HOMA_PANEL_READ_ONLY", "").lower() in {"1", "true", "yes"},
         help="Disable every operation that changes the server",
     )
+    parser.add_argument(
+        "--allow-public-read-only",
+        action="store_true",
+        default=os.environ.get("HOMA_PANEL_ALLOW_PUBLIC_READ_ONLY", "").lower() in {"1", "true", "yes"},
+        help="Explicitly permit a token-less public demo; requires --read-only and --allowed-host",
+    )
+    parser.add_argument(
+        "--allowed-host",
+        dest="allowed_hosts",
+        action="append",
+        default=[item.strip() for item in os.environ.get("HOMA_PANEL_ALLOWED_HOSTS", "").split(",") if item.strip()],
+        metavar="NAME",
+        help="Allowed public Host header; repeat as needed (also HOMA_PANEL_ALLOWED_HOSTS)",
+    )
     parser.add_argument("--version", action="version", version=f"HOMA Panel {VERSION}")
     args = parser.parse_args(argv)
     if not 1 <= args.port <= 65535:
         parser.error("Port must be between 1 and 65535")
-    if non_loopback(args.host) and not args.token and not args.read_only:
-        parser.error("A token is required on non-loopback interfaces (or explicitly use --read-only)")
+    for pattern in args.allowed_hosts:
+        if pattern == "*" or not pattern or any(char.isspace() or char in "/\\@" for char in pattern):
+            parser.error("Allowed hosts must be exact names or suffixes such as .example.com")
+    if non_loopback(args.host) and not args.token:
+        if not args.read_only or not args.allow_public_read_only:
+            parser.error("A token is required on non-loopback interfaces; public demos require explicit read-only opt-in")
+        if not args.allowed_hosts:
+            parser.error("A token-less public demo requires at least one --allowed-host")
     return args
 
 
@@ -841,6 +964,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Unable to start HOMA panel: {exc}", file=sys.stderr)
         return 1
     mode = "read-only" if args.read_only else "control"
+    if non_loopback(args.host) and not args.token:
+        print("WARNING: token-less public read-only demo enabled; never use this mode for production.", file=sys.stderr)
     print(f"HOMA Panel {VERSION} · http://{args.host}:{args.port} · {mode} mode", flush=True)
     try:
         server.serve_forever(poll_interval=0.5)

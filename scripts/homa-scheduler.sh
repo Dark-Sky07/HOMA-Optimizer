@@ -27,11 +27,22 @@ ok(){      printf "%s[OK]%s %s\n" "$C_G" "$C_0" "$1"; }
 warn(){    printf "%s[WARN]%s %s\n" "$C_Y" "$C_0" "$1"; }
 info(){    printf "    %s\n" "$1"; }
 
-get_tehran_hour() {
-  TZ="Asia/Tehran" date +%H | sed 's/^0//'
+check_root() {
+  if [ "$(id -u)" -ne 0 ]; then
+    printf "%s[FAIL] Root privileges required. Run with sudo.%s\n" "$C_R" "$C_0"
+    return 1
+  fi
+}
+
+get_tehran_minutes() {
+  local hour minute
+  hour="$(TZ="Asia/Tehran" date +%H)"
+  minute="$(TZ="Asia/Tehran" date +%M)"
+  printf '%d\n' "$((10#$hour * 60 + 10#$minute))"
 }
 
 apply_peak_mode() {
+  check_root || return 1
   section "Engaging Heavy Peak-Hours Combat Mode"
   mkdir -p "$BASE_DIR"
 
@@ -54,6 +65,7 @@ apply_peak_mode() {
 }
 
 apply_balanced_mode() {
+  check_root || return 1
   section "Switching to Balanced Mode"
   mkdir -p "$BASE_DIR"
 
@@ -71,11 +83,11 @@ apply_balanced_mode() {
 }
 
 evaluate_schedule() {
-  local hour
-  hour=$(get_tehran_hour)
+  local minutes
+  minutes="$(get_tehran_minutes)"
 
-  # Peak filtering hours in Iran: 20:00 to 01:00 (hours 20, 21, 22, 23, 0, 1)
-  if [ "$hour" -ge 20 ] || [ "$hour" -le 1 ]; then
+  # Peak filtering hours in Iran: 20:00 through 01:29 Tehran time.
+  if [ "$minutes" -ge 1200 ] || [ "$minutes" -lt 90 ]; then
     apply_peak_mode
   else
     apply_balanced_mode
@@ -83,13 +95,18 @@ evaluate_schedule() {
 }
 
 enable_scheduler() {
+  check_root || return 1
   section "Enabling Automated Iran Peak-Hours Scheduler"
 
   local src_script
   src_script="$(readlink -f "${BASH_SOURCE[0]}")"
   mkdir -p /opt/homa /opt/homa/scripts
-  cp -f "$src_script" "/opt/homa/homa-scheduler.sh"
-  cp -f "$src_script" "/opt/homa/scripts/homa-scheduler.sh" 2>/dev/null || true
+  if [ "$src_script" != "/opt/homa/homa-scheduler.sh" ]; then
+    cp -f "$src_script" "/opt/homa/homa-scheduler.sh" || return 1
+  fi
+  if [ "$src_script" != "/opt/homa/scripts/homa-scheduler.sh" ]; then
+    cp -f "$src_script" "/opt/homa/scripts/homa-scheduler.sh" || return 1
+  fi
   chmod +x "/opt/homa/homa-scheduler.sh" "/opt/homa/scripts/homa-scheduler.sh" 2>/dev/null || true
 
   cat <<EOF > "$SERVICE_FILE"
@@ -104,25 +121,31 @@ EOF
 
   cat <<EOF > "$TIMER_FILE"
 [Unit]
-Description=Evaluate Iran Peak-Hours Mode every hour
+Description=Evaluate Iran Peak-Hours Mode every 15 minutes
 After=network.target
 
 [Timer]
-OnBootSec=2min
-OnUnitActiveSec=1h
+OnCalendar=*-*-* *:00/15:00
 Persistent=true
 
 [Install]
 WantedBy=timers.target
 EOF
 
-  systemctl daemon-reload
-  systemctl enable --now homa-scheduler.timer >/dev/null 2>&1
-  ok "Automated Scheduler ACTIVE! Checks Iran local time hourly."
+  if ! systemctl daemon-reload || ! systemctl enable --now homa-scheduler.timer >/dev/null 2>&1; then
+    warn "Could not enable homa-scheduler.timer."
+    return 1
+  fi
+  if ! systemctl is-active --quiet homa-scheduler.timer 2>/dev/null; then
+    warn "homa-scheduler.timer is not active."
+    return 1
+  fi
+  ok "Automated Scheduler ACTIVE! Checks Iran local time every 15 minutes."
   evaluate_schedule
 }
 
 disable_scheduler() {
+  check_root || return 1
   systemctl disable --now homa-scheduler.timer >/dev/null 2>&1 || true
   rm -f "$SERVICE_FILE" "$TIMER_FILE"
   systemctl daemon-reload
@@ -138,7 +161,7 @@ show_status() {
 
   local timer_status="${C_R}Disabled (Manual)${C_0}"
   if systemctl is-active --quiet homa-scheduler.timer 2>/dev/null; then
-    timer_status="${C_G}Active (24/7 Automated Hourly Sync)${C_0}"
+    timer_status="${C_G}Active (24/7 Automated 15-Minute Sync)${C_0}"
   fi
 
   section "Iran Peak-Hours Scheduler Status"
@@ -166,7 +189,7 @@ menu() {
     printf "          %sHOMA IRAN PEAK-HOURS SMART SCHEDULER%s\n" "$C_W" "$C_0"
     printf "  Mode: %s | Profile: %s\n" "$timer_stat" "$state"
     printf "%s========================================================================%s\n" "$C_B" "$C_0"
-    printf "  %s[1]%s Enable Automated Hourly Scheduler (Auto Peak/Balanced)\n" "$C_C" "$C_0"
+    printf "  %s[1]%s Enable Automated Scheduler (Peak 20:00-01:30 Tehran)\n" "$C_C" "$C_0"
     printf "  %s[2]%s Force Peak-Hours Combat Mode Now (64MB Max Buffers)\n" "$C_C" "$C_0"
     printf "  %s[3]%s Force Balanced Off-Peak Mode Now\n" "$C_C" "$C_0"
     printf "  %s[4]%s Show Detailed Time & Profile Status\n" "$C_C" "$C_0"

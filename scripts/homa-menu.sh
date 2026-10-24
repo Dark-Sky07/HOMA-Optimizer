@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #===============================================================================
 #  homa — HOMA VPS All In One Optimizer Interactive TUI Menu
-#  Version: 5.2.0 (Graphical Command Center Edition)
+#  Version: 5.2.1 (Security & Reliability Audit Edition)
 #
 #  100% English Terminal Output to guarantee pristine rendering across all
 #  SSH clients, mobile terminals (Termius, JuiceSSH), and web consoles.
@@ -9,8 +9,9 @@
 
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
 set -u
+set -o pipefail
 
-VERSION="5.2.0"
+VERSION="5.2.1"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [ -f "${SCRIPT_DIR}/homa-watchdog.sh" ] || SCRIPT_DIR="/opt/homa/scripts"
 [ -f "${SCRIPT_DIR}/homa-watchdog.sh" ] || SCRIPT_DIR="/opt/homa"
@@ -35,6 +36,7 @@ run_subscript() {
     printf "\n%s[ERROR] Script %s not found on system!%s\n" "$C_R" "$script_name" "$C_0"
     printf "Please update by pressing 'u' or running the installer.\n\n"
     read -r -p "Press [Enter] to continue..." _ || true
+    return 1
   fi
 }
 
@@ -188,7 +190,7 @@ draw_header() {
   printf "  Operator Fix:      %-30b  Memory:        %s\n" "$(get_operator_status)" "${mem_info:-unknown}"
   printf "  Instagram Stream:  %-30b  Swap Memory:   %b\n" "$(get_instagram_status)" "$(get_swap_status)"
   printf "  Watchdog Guard:    %-30b  Unban Healer:  %b\n" "$(get_watchdog_status)" "$(get_unban_status)"
-  printf "  Client Keepalive:  %-30b  Peak Scheduler:%b\n" "$(get_client_opt_status)" "$(get_scheduler_status)"
+  printf "  Client Keepalive:  %-30b  Peak Scheduler: %b\n" "$(get_client_opt_status)" "$(get_scheduler_status)"
   printf "  Security Guard:    %-30b  TCP 443:       %b\n" "$(get_security_status)" "$(get_port_status 443 tcp)"
   printf "%s------------------------------------------------------------------------%s\n" "$C_B" "$C_0"
 }
@@ -215,7 +217,7 @@ show_reality_guide() {
   printf "  2. The PMTU Clamping fix in HOMA Optimizer prevents mobile MTU fragmentation drops.\n"
   printf "  3. Reality uses authentic foreign TLS certificates that pass DPI inspection.\n\n"
   
-  read -r -p "Press [Enter] to return to main menu..." dummy || true
+  read -r -p "Press [Enter] to return to main menu..." _ || true
 }
 
 run_one_click() {
@@ -237,6 +239,8 @@ run_one_click() {
   printf " 12. Essential Package Maintenance (curl, jq, sqlite3, htop)\n\n"
   
   local confirm="n"
+  local failures=0
+  local result=0
   if [ "$auto_confirm" = "--yes" ]; then
     confirm="yes"
     printf "Non-interactive confirmation received from HOMA Control Panel.\n"
@@ -246,42 +250,47 @@ run_one_click() {
   case "$confirm" in
     [yY]|[yY][eE][sS])
       printf "\n[1/12] Applying kernel & network tuning...\n"
-      run_subscript "homa-boost.sh" --apply || true
-      
+      run_subscript "homa-boost.sh" --apply || failures=$((failures + 1))
+
       printf "\n[2/12] Applying operator compatibility booster...\n"
-      run_subscript "homa-operator-fix.sh" --apply || true
+      run_subscript "homa-operator-fix.sh" --apply || failures=$((failures + 1))
 
       printf "\n[3/12] Applying Instagram & video streaming optimizer...\n"
-      run_subscript "homa-instagram-fix.sh" --apply || true
+      run_subscript "homa-instagram-fix.sh" --apply || failures=$((failures + 1))
 
       printf "\n[4/12] Applying client battery & persistent background connection guard...\n"
-      run_subscript "homa-client-opt.sh" apply || true
+      run_subscript "homa-client-opt.sh" apply || failures=$((failures + 1))
 
       printf "\n[5/12] Activating Iran peak-hours performance scheduler...\n"
-      run_subscript "homa-scheduler.sh" enable || true
+      run_subscript "homa-scheduler.sh" enable || failures=$((failures + 1))
 
       printf "\n[6/12] Applying smart anti-pollution DNS cache...\n"
-      run_subscript "homa-dns.sh" apply || true
+      run_subscript "homa-dns.sh" apply || failures=$((failures + 1))
 
       printf "\n[7/12] Applying system hardware, RAM, ulimit, & logs tuning...\n"
-      run_subscript "homa-hardware-opt.sh" --all || true
+      run_subscript "homa-hardware-opt.sh" --all || failures=$((failures + 1))
 
       printf "\n[8/12] Applying security hardening & Fail2ban...\n"
-      run_subscript "homa-security.sh" --apply || true
+      run_subscript "homa-security.sh" --apply || failures=$((failures + 1))
 
       printf "\n[9/12] Activating background Google/ChatGPT auto-unban daemon...\n"
-      run_subscript "homa-unban.sh" enable || true
+      run_subscript "homa-unban.sh" enable || failures=$((failures + 1))
 
       printf "\n[10/12] Enabling 24/7 panel & Xray auto-healing watchdog...\n"
-      run_subscript "homa-watchdog.sh" enable || true
+      run_subscript "homa-watchdog.sh" enable || failures=$((failures + 1))
 
       printf "\n[11/12] Scheduling nightly janitor maintenance...\n"
-      run_subscript "homa-cron.sh" --enable || true
+      run_subscript "homa-cron.sh" --enable || failures=$((failures + 1))
 
       printf "\n[12/12] Updating essential system packages...\n"
-      run_subscript "homa-sysupdate.sh" || true
-      
-      printf "\n%s[SUCCESS] Full Server Optimization Completed!%s\n" "$C_G" "$C_0"
+      run_subscript "homa-sysupdate.sh" || failures=$((failures + 1))
+
+      if [ "$failures" -gt 0 ]; then
+        printf "\n%s[FAIL] Full optimization finished with %d failed module(s).%s\n" "$C_R" "$failures" "$C_0"
+        result=1
+      else
+        printf "\n%s[SUCCESS] Full Server Optimization Completed!%s\n" "$C_G" "$C_0"
+      fi
       ;;
     *)
       printf "Aborted.\n"
@@ -289,8 +298,9 @@ run_one_click() {
   esac
   printf "\n"
   if [ "$auto_confirm" != "--yes" ] && [ -t 0 ]; then
-    read -r -p "Press [Enter] to return to main menu..." dummy || true
+    read -r -p "Press [Enter] to return to main menu..." _ || true
   fi
+  return "$result"
 }
 
 update_suite() {
@@ -304,31 +314,58 @@ update_suite() {
   printf "Checking for the latest release on GitHub...\n"
 
   local repo_name="Dark-Sky07/HOMA-Optimizer"
+  if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
+    printf "%s[FAIL] Either curl or wget is required for updates.%s\n" "$C_R" "$C_0"
+    return 1
+  fi
+
   local latest_tag=""
-  latest_tag="$(curl -sI --max-time 12 "https://github.com/${repo_name}/releases/latest" 2>/dev/null | awk -F'/' '/[Ll]ocation:/ {print $NF}' | tr -d '\r\n')"
-  if [ -n "$latest_tag" ]; then
+  if command -v curl >/dev/null 2>&1; then
+    latest_tag="$(curl -fsSI --max-time 12 "https://github.com/${repo_name}/releases/latest" 2>/dev/null | awk -F'/' '/[Ll]ocation:/ {print $NF}' | tr -d '\r\n')" || latest_tag=""
+  fi
+  if [ -n "$latest_tag" ] && ! [[ "$latest_tag" =~ ^[A-Za-z0-9._-]+$ ]]; then
+    printf "%s[WARN] Ignoring an invalid release tag received from GitHub.%s\n" "$C_Y" "$C_0"
+    latest_tag=""
+  fi
+  if [ -n "$latest_tag" ] && [ "$latest_tag" != "latest" ]; then
     printf "Found latest release: %s%s%s\n" "$C_G" "$latest_tag" "$C_0"
   fi
 
   local tmp_dir
-  tmp_dir="$(mktemp -d)"
+  if ! tmp_dir="$(mktemp -d)"; then
+    printf "%s[FAIL] Could not allocate a temporary update directory.%s\n" "$C_R" "$C_0"
+    return 1
+  fi
   local dl_ok=0
+  local package_dir=""
   local urls=()
   if [ -n "$latest_tag" ] && [ "$latest_tag" != "latest" ]; then
     urls+=("https://github.com/${repo_name}/archive/refs/tags/${latest_tag}.tar.gz")
   fi
   urls+=("https://github.com/${repo_name}/archive/refs/heads/main.tar.gz")
 
-  local url
+  local url candidate_dir
   for url in "${urls[@]}"; do
-    if curl -fsSL --max-time 120 "$url" 2>/dev/null | tar -xz -C "$tmp_dir" --strip-components=1 2>/dev/null || \
-       wget -qO- "$url" 2>/dev/null | tar -xz -C "$tmp_dir" --strip-components=1 2>/dev/null; then
+    # A failed archive must never be mixed with the next download attempt.
+    candidate_dir="${tmp_dir}/candidate"
+    rm -rf "$candidate_dir"
+    mkdir -p "$candidate_dir"
+    if command -v curl >/dev/null 2>&1; then
+      if curl -fsSL --max-time 120 "$url" 2>/dev/null | tar -xz -C "$candidate_dir" --strip-components=1 --no-same-owner --no-same-permissions 2>/dev/null; then
+        dl_ok=1
+      fi
+    elif wget -qO- --timeout=120 "$url" 2>/dev/null | tar -xz -C "$candidate_dir" --strip-components=1 --no-same-owner --no-same-permissions 2>/dev/null; then
       dl_ok=1
+    fi
+    if [ "$dl_ok" -eq 1 ] && [ -f "$candidate_dir/install.sh" ] && \
+       [ -f "$candidate_dir/scripts/homa-menu.sh" ] && [ -f "$candidate_dir/panel/server.py" ]; then
+      package_dir="$candidate_dir"
       break
     fi
+    dl_ok=0
   done
 
-  if [ "$dl_ok" -eq 1 ] && [ -f "$tmp_dir/install.sh" ]; then
+  if [ "$dl_ok" -eq 1 ] && [ -n "$package_dir" ]; then
     printf "Installing the complete HOMA suite and graphical panel...\n"
     local install_options=(--no-launch)
     if [ "$panel_mode" = "--from-panel" ]; then
@@ -336,7 +373,7 @@ update_suite() {
       # marked successful, so the installer must not interrupt its parent mid-log.
       install_options+=(--no-panel)
     fi
-    if HOMA_NONINTERACTIVE=1 bash "$tmp_dir/install.sh" "${install_options[@]}"; then
+    if HOMA_NONINTERACTIVE=1 bash "$package_dir/install.sh" "${install_options[@]}"; then
       rm -rf "$tmp_dir"
       if [ "$panel_mode" = "--from-panel" ]; then
         printf "\n%s[OK] HOMA update installed successfully.%s\n" "$C_G" "$C_0"
@@ -416,7 +453,7 @@ main_menu() {
         clear_screen
         run_subscript "homa-preflight.sh"
         printf "\n"
-        read -r -p "Press [Enter] to return to main menu..." dummy || true
+        read -r -p "Press [Enter] to return to main menu..." _ || true
         ;;
       2)
         run_one_click
@@ -430,9 +467,9 @@ main_menu() {
         printf "  %s[0]%s Back to Main Menu\n\n" "$C_Y" "$C_0"
         read -r -p "Choice [0-3]: " netchoice || netchoice="0"
         case "$netchoice" in
-          1) clear_screen; run_subscript "homa-boost.sh" --apply; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
-          2) clear_screen; run_subscript "homa-boost.sh" --status; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
-          3) clear_screen; run_subscript "homa-boost.sh" --rollback; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
+          1) clear_screen; run_subscript "homa-boost.sh" --apply; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          2) clear_screen; run_subscript "homa-boost.sh" --status; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          3) clear_screen; run_subscript "homa-boost.sh" --rollback; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
           0|b|B|"") continue ;;
           *) echo "Invalid choice."; sleep 1 ;;
         esac
@@ -446,9 +483,9 @@ main_menu() {
         printf "  %s[0]%s Back to Main Menu\n\n" "$C_Y" "$C_0"
         read -r -p "Choice [0-3]: " opchoice || opchoice="0"
         case "$opchoice" in
-          1) clear_screen; run_subscript "homa-operator-fix.sh" --apply; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
-          2) clear_screen; run_subscript "homa-operator-fix.sh" --status; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
-          3) clear_screen; run_subscript "homa-operator-fix.sh" --rollback; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
+          1) clear_screen; run_subscript "homa-operator-fix.sh" --apply; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          2) clear_screen; run_subscript "homa-operator-fix.sh" --status; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          3) clear_screen; run_subscript "homa-operator-fix.sh" --rollback; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
           0|b|B|"") continue ;;
           *) echo "Invalid choice."; sleep 1 ;;
         esac
@@ -462,9 +499,9 @@ main_menu() {
         printf "  %s[0]%s Back to Main Menu\n\n" "$C_Y" "$C_0"
         read -r -p "Choice [0-3]: " igchoice || igchoice="0"
         case "$igchoice" in
-          1) clear_screen; run_subscript "homa-instagram-fix.sh" --apply; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
-          2) clear_screen; run_subscript "homa-instagram-fix.sh" --status; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
-          3) clear_screen; run_subscript "homa-instagram-fix.sh" --rollback; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
+          1) clear_screen; run_subscript "homa-instagram-fix.sh" --apply; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          2) clear_screen; run_subscript "homa-instagram-fix.sh" --status; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          3) clear_screen; run_subscript "homa-instagram-fix.sh" --rollback; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
           0|b|B|"") continue ;;
           *) echo "Invalid choice."; sleep 1 ;;
         esac
@@ -485,13 +522,13 @@ main_menu() {
         clear_screen
         run_subscript "homa-sni-checker.sh"
         printf "\n"
-        read -r -p "Press [Enter] to return to main menu..." dummy || true
+        read -r -p "Press [Enter] to return to main menu..." _ || true
         ;;
       10)
         clear_screen
         run_subscript "homa-cf-scanner.sh"
         printf "\n"
-        read -r -p "Press [Enter] to return to main menu..." dummy || true
+        read -r -p "Press [Enter] to return to main menu..." _ || true
         ;;
       11)
         clear_screen
@@ -506,9 +543,9 @@ main_menu() {
         printf "  %s[0]%s Back to Main Menu\n\n" "$C_Y" "$C_0"
         read -r -p "Choice [0-3]: " hwchoice || hwchoice="0"
         case "$hwchoice" in
-          1) clear_screen; run_subscript "homa-hardware-opt.sh" --all; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
-          2) clear_screen; run_subscript "homa-hardware-opt.sh" --status; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
-          3) clear_screen; run_subscript "homa-hardware-opt.sh" --rollback; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
+          1) clear_screen; run_subscript "homa-hardware-opt.sh" --all; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          2) clear_screen; run_subscript "homa-hardware-opt.sh" --status; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          3) clear_screen; run_subscript "homa-hardware-opt.sh" --rollback; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
           0|b|B|"") continue ;;
           *) echo "Invalid choice."; sleep 1 ;;
         esac
@@ -534,9 +571,9 @@ main_menu() {
         printf "  %s[0]%s Back to Main Menu\n\n" "$C_Y" "$C_0"
         read -r -p "Choice [0-3]: " secchoice || secchoice="0"
         case "$secchoice" in
-          1) clear_screen; run_subscript "homa-security.sh" --apply; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
-          2) clear_screen; run_subscript "homa-security.sh" --status; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
-          3) clear_screen; run_subscript "homa-security.sh" --rollback; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
+          1) clear_screen; run_subscript "homa-security.sh" --apply; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          2) clear_screen; run_subscript "homa-security.sh" --status; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          3) clear_screen; run_subscript "homa-security.sh" --rollback; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
           0|b|B|"") continue ;;
           *) echo "Invalid choice."; sleep 1 ;;
         esac
@@ -550,9 +587,9 @@ main_menu() {
         printf "  %s[0]%s Back to Main Menu\n\n" "$C_Y" "$C_0"
         read -r -p "Choice [0-3]: " bakchoice || bakchoice="0"
         case "$bakchoice" in
-          1) clear_screen; run_subscript "homa-backup.sh" --backup; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
-          2) clear_screen; run_subscript "homa-backup.sh" --list; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
-          3) clear_screen; run_subscript "homa-backup.sh" --restore; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
+          1) clear_screen; run_subscript "homa-backup.sh" --backup; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          2) clear_screen; run_subscript "homa-backup.sh" --list; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          3) clear_screen; run_subscript "homa-backup.sh" --restore; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
           0|b|B|"") continue ;;
           *) echo "Invalid choice."; sleep 1 ;;
         esac
@@ -567,10 +604,10 @@ main_menu() {
         printf "  %s[0]%s Back to Main Menu\n\n" "$C_Y" "$C_0"
         read -r -p "Choice [0-4]: " cronchoice || cronchoice="0"
         case "$cronchoice" in
-          1) clear_screen; run_subscript "homa-cron.sh" --enable; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
-          2) clear_screen; run_subscript "homa-cron.sh" --run; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
-          3) clear_screen; run_subscript "homa-cron.sh" --disable; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
-          4) clear_screen; run_subscript "homa-cron.sh" --status; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
+          1) clear_screen; run_subscript "homa-cron.sh" --enable; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          2) clear_screen; run_subscript "homa-cron.sh" --run; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          3) clear_screen; run_subscript "homa-cron.sh" --disable; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          4) clear_screen; run_subscript "homa-cron.sh" --status; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
           0|b|B|"") continue ;;
           *) echo "Invalid choice."; sleep 1 ;;
         esac
@@ -579,7 +616,7 @@ main_menu() {
         clear_screen
         run_subscript "homa-sysupdate.sh" || true
         printf "\n"
-        read -r -p "Press [Enter] to return to main menu..." dummy || true
+        read -r -p "Press [Enter] to return to main menu..." _ || true
         ;;
       20)
         clear_screen
@@ -593,7 +630,7 @@ main_menu() {
         clear_screen
         run_subscript "homa-iran-probe.sh"
         printf "\n"
-        read -r -p "Press [Enter] to return to main menu..." dummy || true
+        read -r -p "Press [Enter] to return to main menu..." _ || true
         ;;
       23)
         clear_screen
@@ -603,7 +640,7 @@ main_menu() {
         clear_screen
         run_subscript "homa-speedtest.sh"
         printf "\n"
-        read -r -p "Press [Enter] to return to main menu..." dummy || true
+        read -r -p "Press [Enter] to return to main menu..." _ || true
         ;;
       25)
         clear_screen
@@ -617,8 +654,8 @@ main_menu() {
         printf "  %s[0]%s Back to Main Menu\n\n" "$C_Y" "$C_0"
         read -r -p "Choice [0-2]: " portchoice || portchoice="0"
         case "$portchoice" in
-          1) clear_screen; run_subscript "homa-port-doctor.sh" --scan; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
-          2) clear_screen; run_subscript "homa-port-doctor.sh" --open; printf "\n"; read -r -p "Press [Enter] to return to main menu..." dummy || true ;;
+          1) clear_screen; run_subscript "homa-port-doctor.sh" --scan; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
+          2) clear_screen; run_subscript "homa-port-doctor.sh" --open; printf "\n"; read -r -p "Press [Enter] to return to main menu..." _ || true ;;
           0|b|B|"") continue ;;
           *) echo "Invalid choice."; sleep 1 ;;
         esac
@@ -648,26 +685,31 @@ main_menu() {
         read -r -p "Are you sure you want to restore original server settings? [y/N]: " confirm_rb || confirm_rb="n"
         case "$confirm_rb" in
           [yY]|[yY][eE][sS])
-            run_subscript "homa-boost.sh" --rollback || true
-            run_subscript "homa-operator-fix.sh" --rollback || true
-            run_subscript "homa-instagram-fix.sh" --rollback || true
-            run_subscript "homa-client-opt.sh" rollback || true
-            run_subscript "homa-scheduler.sh" disable || true
-            run_subscript "homa-hardware-opt.sh" --rollback || true
-            run_subscript "homa-security.sh" --rollback || true
-            run_subscript "homa-cron.sh" --disable || true
-            run_subscript "homa-dns.sh" rollback || true
-            run_subscript "homa-unban.sh" disable || true
-            run_subscript "homa-watchdog.sh" disable || true
-            run_subscript "homa-iran-unlocker.sh" rollback || true
-            printf "\n%s[OK] All modifications rolled back cleanly.%s\n" "$C_G" "$C_0"
+            local rollback_failures=0
+            run_subscript "homa-boost.sh" --rollback || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-operator-fix.sh" --rollback || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-instagram-fix.sh" --rollback || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-client-opt.sh" rollback || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-scheduler.sh" disable || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-hardware-opt.sh" --rollback || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-security.sh" --rollback || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-cron.sh" --disable || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-dns.sh" rollback || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-unban.sh" disable || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-watchdog.sh" disable || rollback_failures=$((rollback_failures + 1))
+            run_subscript "homa-iran-unlocker.sh" rollback || rollback_failures=$((rollback_failures + 1))
+            if [ "$rollback_failures" -gt 0 ]; then
+              printf "\n%s[FAIL] Rollback finished with %d failed module(s).%s\n" "$C_R" "$rollback_failures" "$C_0"
+            else
+              printf "\n%s[OK] All modifications rolled back cleanly.%s\n" "$C_G" "$C_0"
+            fi
             ;;
           *)
             printf "Rollback cancelled.\n"
             ;;
         esac
         printf "\n"
-        read -r -p "Press [Enter] to return to main menu..." dummy || true
+        read -r -p "Press [Enter] to return to main menu..." _ || true
         ;;
       u|U)
         update_suite

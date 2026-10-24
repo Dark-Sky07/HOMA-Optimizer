@@ -25,7 +25,6 @@
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
 set -u
 
-VERSION="0.3.0"
 BASE_DIR="/opt/homa"
 BACKUP_DIR="${BASE_DIR}/backup"
 IPTABLES_BACKUP="${BASE_DIR}/iptables-mangle.bak"
@@ -34,9 +33,9 @@ RULES_APPLIED_FLAG="${BASE_DIR}/operator-fix.active"
 # Color helpers
 if [ -t 1 ]; then
   C_G=$'\033[0;32m'; C_Y=$'\033[0;33m'; C_R=$'\033[0;31m'
-  C_B=$'\033[1;36m'; C_W=$'\033[1;37m'; C_0=$'\033[0m'
+  C_B=$'\033[1;36m'; C_0=$'\033[0m'
 else
-  C_G=""; C_Y=""; C_R=""; C_B=""; C_W=""; C_0=""
+  C_G=""; C_Y=""; C_R=""; C_B=""; C_0=""
 fi
 
 section(){ printf "\n%s=== %s ===%s\n" "$C_B" "$1" "$C_0"; }
@@ -118,47 +117,81 @@ apply_fix() {
   check_root
   section "Applying Operator Compatibility Fix (Samantel & Mobile Carriers)"
 
-  mkdir -p "$BACKUP_DIR"
-
-  # 1. Backup iptables mangle table
-  if have iptables-save; then
-    iptables-save -t mangle > "$IPTABLES_BACKUP" 2>/dev/null || true
-    ok "Saved iptables mangle backup to $IPTABLES_BACKUP"
+  if ! have iptables || ! have iptables-save; then
+    bad "iptables and iptables-save are required; no changes were applied."
+    return 1
+  fi
+  if ! mkdir -p "$BACKUP_DIR"; then
+    bad "Could not create $BACKUP_DIR."
+    return 1
   fi
 
-  # 2. Add TCP MSS Clamping to prevent PMTU blackhole drops
+  # Preserve the previous backup until a complete replacement is available.
+  local backup_tmp
+  if ! backup_tmp="$(mktemp "${BASE_DIR}/.iptables-mangle.XXXXXX")"; then
+    bad "Could not allocate a private iptables backup."
+    return 1
+  fi
+  if ! iptables-save -t mangle > "$backup_tmp" 2>/dev/null; then
+    rm -f "$backup_tmp"
+    bad "Could not back up the iptables mangle table; no rules were changed."
+    return 1
+  fi
+  if ! chmod 600 "$backup_tmp" || ! mv -f "$backup_tmp" "$IPTABLES_BACKUP"; then
+    rm -f "$backup_tmp"
+    bad "Could not install the iptables backup; no rules were changed."
+    return 1
+  fi
+  ok "Saved iptables mangle backup to $IPTABLES_BACKUP"
+
+  # Add TCP MSS Clamping to prevent PMTU blackhole drops.
   info "Injecting TCP MSS Clamping rules into iptables mangle table..."
   if ! has_mss_clamp; then
-    iptables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+    if ! iptables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu; then
+      bad "Could not add POSTROUTING TCP MSS clamping."
+      return 1
+    fi
     ok "Added POSTROUTING TCP MSS clamping rule"
   else
     info "POSTROUTING TCP MSS clamping rule already exists."
   fi
 
   if ! has_forward_mss; then
-    iptables -t mangle -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+    if ! iptables -t mangle -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu; then
+      bad "Could not add FORWARD TCP MSS clamping. Run --rollback to remove any new POSTROUTING rule."
+      return 1
+    fi
     ok "Added FORWARD TCP MSS clamping rule"
   else
     info "FORWARD TCP MSS clamping rule already exists."
   fi
 
-  # 3. Enable IP Forwarding & dynamic MTU probing in sysctl
-  info "Enabling IP forwarding & Dynamic MTU probing in kernel..."
-  /sbin/sysctl -w net.ipv4.ip_forward=1 >/dev/null 2>&1 || true
-  /sbin/sysctl -w net.ipv4.tcp_mtu_probing=1 >/dev/null 2>&1 || true
-  /sbin/sysctl -w net.ipv4.tcp_base_mss=1024 >/dev/null 2>&1 || true
+  # Enable IP Forwarding & dynamic MTU probing in sysctl.
+  info "Enabling IP Forwarding & Dynamic MTU probing in kernel..."
+  if ! /sbin/sysctl -w net.ipv4.ip_forward=1 >/dev/null 2>&1 ||
+     ! /sbin/sysctl -w net.ipv4.tcp_mtu_probing=1 >/dev/null 2>&1 ||
+     ! /sbin/sysctl -w net.ipv4.tcp_base_mss=1024 >/dev/null 2>&1; then
+    bad "A required sysctl setting failed; the operator fix is incomplete."
+    return 1
+  fi
 
-  # Also write to persistent conf if directory exists
   if [ -d "/etc/sysctl.d" ]; then
-    cat << 'EOF' > /etc/sysctl.d/98-homa-operator-mtu.conf
+    if ! cat << 'EOF' > /etc/sysctl.d/98-homa-operator-mtu.conf
 # HOMA Operator Compatibility Settings
 net.ipv4.ip_forward = 1
 net.ipv4.tcp_mtu_probing = 1
 net.ipv4.tcp_base_mss = 1024
 EOF
+    then
+      bad "Could not persist operator sysctl settings."
+      return 1
+    fi
   fi
 
-  touch "$RULES_APPLIED_FLAG"
+  if ! touch "$RULES_APPLIED_FLAG"; then
+    bad "Could not record operator fix state."
+    return 1
+  fi
   printf "\n"
   ok "Operator compatibility booster applied successfully!"
   info "Mobile carriers with restricted MTU (Samantel, Rightel, LTE) will now negotiate MSS cleanly."
@@ -169,21 +202,39 @@ rollback_fix() {
   check_root
   section "Restoring Operator Rules (Rollback)"
 
+  if ! have iptables; then
+    bad "iptables is required to verify rollback."
+    return 1
+  fi
+  local failures=0
   info "Removing TCP MSS Clamping rules..."
   while has_mss_clamp; do
-    iptables -t mangle -D POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null || break
+    if ! iptables -t mangle -D POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null; then
+      failures=$((failures + 1))
+      break
+    fi
   done
 
   while has_forward_mss; do
-    iptables -t mangle -D FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null || break
+    if ! iptables -t mangle -D FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null; then
+      failures=$((failures + 1))
+      break
+    fi
   done
 
   if [ -f "/etc/sysctl.d/98-homa-operator-mtu.conf" ]; then
-    rm -f "/etc/sysctl.d/98-homa-operator-mtu.conf"
-    info "Removed /etc/sysctl.d/98-homa-operator-mtu.conf"
+    if rm -f "/etc/sysctl.d/98-homa-operator-mtu.conf"; then
+      info "Removed /etc/sysctl.d/98-homa-operator-mtu.conf"
+    else
+      failures=$((failures + 1))
+    fi
   fi
 
-  rm -f "$RULES_APPLIED_FLAG"
+  rm -f "$RULES_APPLIED_FLAG" || failures=$((failures + 1))
+  if [ "$failures" -gt 0 ]; then
+    bad "Operator rollback encountered $failures error(s)."
+    return 1
+  fi
   ok "Operator compatibility rules removed cleanly."
 }
 

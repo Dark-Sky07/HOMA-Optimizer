@@ -12,6 +12,7 @@
 
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
 set -u
+umask 077
 
 BASE_DIR="/opt/homa"
 BACKUP_DIR="${BASE_DIR}/backups"
@@ -38,14 +39,27 @@ check_root() {
   fi
 }
 
+prepare_backup_dir() {
+  if ! mkdir -p "$BACKUP_DIR" || ! chmod 700 "$BACKUP_DIR"; then
+    bad "Unable to secure backup directory: $BACKUP_DIR"
+    return 1
+  fi
+  # Older releases could leave archives containing private keys world-readable.
+  find "$BACKUP_DIR" -maxdepth 1 -type f -name 'homa-panel-backup-*.tar.gz' -exec chmod 600 {} +
+}
+
 create_backup() {
   check_root
   section "Creating Panel & System Disaster Recovery Backup"
 
-  mkdir -p "$BACKUP_DIR"
+  prepare_backup_dir || return 1
   local timestamp
   timestamp="$(date +%Y%m%d-%H%M%S)"
-  local archive="${BACKUP_DIR}/homa-panel-backup-${timestamp}.tar.gz"
+  local archive
+  if ! archive="$(mktemp "${BACKUP_DIR}/homa-panel-backup-${timestamp}-XXXXXX.tar.gz")"; then
+    bad "Unable to allocate a unique backup archive."
+    return 1
+  fi
 
   local items_to_backup=()
 
@@ -69,7 +83,16 @@ create_backup() {
   fi
 
   info "Compressing files into: $archive"
-  tar -czf "$archive" "${items_to_backup[@]}" 2>/dev/null || true
+  if ! tar -czf "$archive" -- "${items_to_backup[@]}" 2>/dev/null; then
+    rm -f "$archive"
+    bad "Backup creation failed; the incomplete archive was removed."
+    return 1
+  fi
+  if ! chmod 600 "$archive"; then
+    rm -f "$archive"
+    bad "Unable to protect the backup archive."
+    return 1
+  fi
 
   local arc_size
   arc_size="$(du -h "$archive" 2>/dev/null | awk '{print $1}')"
@@ -86,7 +109,7 @@ create_backup() {
 
 list_backups() {
   section "Available Panel Backups"
-  mkdir -p "$BACKUP_DIR"
+  prepare_backup_dir || return 1
 
   local count=0
   for f in "${BACKUP_DIR}"/homa-panel-backup-*.tar.gz; do
@@ -108,7 +131,7 @@ list_backups() {
 restore_backup() {
   check_root
   section "Restore Panel from Backup"
-  mkdir -p "$BACKUP_DIR"
+  prepare_backup_dir || return 1
 
   local backups=()
   for f in "${BACKUP_DIR}"/homa-panel-backup-*.tar.gz; do
@@ -130,28 +153,73 @@ restore_backup() {
   done
   printf "  [0] Cancel\n\n"
 
+  local sel=""
   read -r -p "Enter number [0-$((idx - 1))]: " sel || sel="0"
-  if [ "$sel" -eq 0 ] || [ "$sel" -ge "$idx" ]; then
+  # Validate before any integer test or array subscript: arithmetic expansion
+  # must never evaluate untrusted input as a Bash expression.
+  if ! [[ "$sel" =~ ^[0-9]+$ ]] || [ "${#sel}" -gt 9 ]; then
+    bad "Invalid backup selection."
+    return 1
+  fi
+  # Force decimal interpretation so valid selections such as 08 and 09 are
+  # not treated as invalid octal numbers by Bash arithmetic.
+  sel=$((10#$sel))
+  if [ "$sel" -eq 0 ]; then
     info "Restore cancelled."
     return 0
+  fi
+  if [ "$sel" -ge "$idx" ]; then
+    bad "Backup selection is out of range."
+    return 1
   fi
 
   local target_archive="${backups[$((sel - 1))]}"
   info "Selected: $(basename "$target_archive")"
+  if ! tar -tzf "$target_archive" >/dev/null 2>&1; then
+    bad "The selected archive is invalid or unreadable; nothing was restored."
+    return 1
+  fi
 
-  # Safety snapshot of current state before restoring
+  # Safety snapshot of current state before restoring.
   if [ -f "/etc/x-ui/x-ui.db" ]; then
     info "Taking pre-restore snapshot of current database..."
-    cp "/etc/x-ui/x-ui.db" "/etc/x-ui/x-ui.db.pre-restore"
+    if ! cp "/etc/x-ui/x-ui.db" "/etc/x-ui/x-ui.db.pre-restore"; then
+      bad "Could not create the pre-restore database snapshot; restore aborted."
+      return 1
+    fi
+  fi
+
+  local panel_service=""
+  for candidate in x-ui 3x-ui; do
+    if systemctl is-active --quiet "$candidate" 2>/dev/null; then
+      panel_service="$candidate"
+      break
+    fi
+  done
+  if [ -n "$panel_service" ]; then
+    info "Stopping $panel_service while its database is restored..."
+    if ! systemctl stop "$panel_service" 2>/dev/null; then
+      bad "Could not stop $panel_service safely; restore aborted."
+      return 1
+    fi
   fi
 
   info "Extracting backup..."
-  tar -xzf "$target_archive" -C / 2>/dev/null || true
+  if ! tar -xzf "$target_archive" -C / 2>/dev/null; then
+    if [ -n "$panel_service" ]; then
+      bad "Restore failed. $panel_service was left stopped; verify files before recovery."
+    else
+      bad "Restore failed; verify the restored files before starting the panel."
+    fi
+    return 1
+  fi
 
-  # If x-ui service is active, softly restart panel service to reload restored DB
-  if systemctl is-active --quiet x-ui 2>/dev/null; then
-    info "Restarting x-ui service to load restored database..."
-    systemctl restart x-ui 2>/dev/null || true
+  if [ -n "$panel_service" ]; then
+    info "Restarting $panel_service to load the restored database..."
+    if ! systemctl restart "$panel_service" 2>/dev/null; then
+      bad "Files were restored, but $panel_service could not be restarted."
+      return 1
+    fi
   fi
 
   printf "\n"

@@ -13,9 +13,9 @@ set -u
 # Color helpers
 if [ -t 1 ]; then
   C_G=$'\033[0;32m'; C_Y=$'\033[0;33m'; C_R=$'\033[0;31m'
-  C_B=$'\033[1;36m'; C_W=$'\033[1;37m'; C_DIM=$'\033[2m'; C_0=$'\033[0m'
+  C_B=$'\033[1;36m'; C_W=$'\033[1;37m'; C_0=$'\033[0m'
 else
-  C_G=""; C_Y=""; C_R=""; C_B=""; C_W=""; C_DIM=""; C_0=""
+  C_G=""; C_Y=""; C_R=""; C_B=""; C_W=""; C_0=""
 fi
 
 section(){ printf "\n%s=== %s ===%s\n" "$C_B" "$1" "$C_0"; }
@@ -52,9 +52,9 @@ probe_target() {
   else
     # 2. TCP connect fallback if ICMP is blocked by carrier firewalls
     local start_time end_time diff_ms
-    start_time="$(python3 -c 'import time; print(int(time.time()*1000))' 2>/dev/null || date +%s)"
+    start_time="$(date +%s%3N)"
     if timeout 1.2 bash -c "(echo >/dev/tcp/$ip/$port) >/dev/null 2>&1"; then
-      end_time="$(python3 -c 'import time; print(int(time.time()*1000))' 2>/dev/null || date +%s)"
+      end_time="$(date +%s%3N)"
       diff_ms=$(( end_time - start_time ))
       latency="${diff_ms}.0 ms"
       loss="0% (TCP)"

@@ -19,9 +19,9 @@ ACTIVE_FLAG="${BASE_DIR}/security.active"
 # Color helpers
 if [ -t 1 ]; then
   C_G=$'\033[0;32m'; C_Y=$'\033[0;33m'; C_R=$'\033[0;31m'
-  C_B=$'\033[1;36m'; C_W=$'\033[1;37m'; C_0=$'\033[0m'
+  C_B=$'\033[1;36m'; C_0=$'\033[0m'
 else
-  C_G=""; C_Y=""; C_R=""; C_B=""; C_W=""; C_0=""
+  C_G=""; C_Y=""; C_R=""; C_B=""; C_0=""
 fi
 
 section(){ printf "\n%s=== %s ===%s\n" "$C_B" "$1" "$C_0"; }
@@ -81,10 +81,14 @@ apply_security() {
     apt-get install -y --no-install-recommends fail2ban >/dev/null 2>&1 || true
   fi
 
-  if have fail2ban-client; then
-    info "Configuring SSH brute-force jail (max 5 retries, 24h ban)..."
-    mkdir -p /etc/fail2ban/jail.d
-    cat << 'EOF' > "$FAIL2BAN_CONF"
+  if ! have fail2ban-client; then
+    bad "Fail2ban could not be installed; security hardening was not completed."
+    return 1
+  fi
+
+  info "Configuring SSH brute-force jail (max 5 retries, 24h ban)..."
+  mkdir -p /etc/fail2ban/jail.d
+  cat << 'EOF' > "$FAIL2BAN_CONF"
 [sshd]
 enabled = true
 port = ssh
@@ -93,24 +97,39 @@ maxretry = 5
 findtime = 600
 bantime = 86400
 EOF
-    systemctl restart fail2ban 2>/dev/null || true
-    systemctl enable fail2ban 2>/dev/null || true
-    ok "Fail2ban SSH brute-force protection active."
+  if ! systemctl restart fail2ban 2>/dev/null || ! systemctl enable fail2ban 2>/dev/null || \
+     ! systemctl is-active --quiet fail2ban 2>/dev/null; then
+    bad "Fail2ban is installed but its service could not be activated."
+    return 1
   fi
+  ok "Fail2ban SSH brute-force protection active."
 
   # 2. ICMP Rate Limiting
   info "Applying ICMP Ping-Flood rate limiting..."
+  if ! have iptables; then
+    bad "iptables is required for ICMP rate limiting."
+    return 1
+  fi
   if ! iptables -C INPUT -p icmp --icmp-type echo-request -m limit --limit 5/s --limit-burst 10 -j ACCEPT >/dev/null 2>&1; then
-    iptables -I INPUT -p icmp --icmp-type echo-request -m limit --limit 5/s --limit-burst 10 -j ACCEPT
-    iptables -A INPUT -p icmp --icmp-type echo-request -j DROP
+    if ! iptables -I INPUT -p icmp --icmp-type echo-request -m limit --limit 5/s --limit-burst 10 -j ACCEPT || \
+       ! iptables -A INPUT -p icmp --icmp-type echo-request -j DROP; then
+      bad "Could not install the ICMP rate-limiting rules."
+      return 1
+    fi
     ok "ICMP Rate Limiting enabled (Legitimate pings allowed; floods dropped)."
   fi
 
   # 3. Kernel SYN-flood protection
-  /sbin/sysctl -w net.ipv4.tcp_syncookies=1 >/dev/null 2>&1 || true
+  if ! /sbin/sysctl -w net.ipv4.tcp_syncookies=1 >/dev/null 2>&1; then
+    bad "Could not enable TCP syncookies."
+    return 1
+  fi
   ok "TCP Syncookies enabled."
 
-  touch "$ACTIVE_FLAG"
+  if ! touch "$ACTIVE_FLAG"; then
+    bad "Could not save the security state marker."
+    return 1
+  fi
   printf "\n"
   ok "Security hardening applied successfully!"
 }

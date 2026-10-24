@@ -220,7 +220,10 @@ apply_tuning() {
   } > "$CONF_FILE"
 
   info "Applying live into kernel memory..."
-  /sbin/sysctl -p "$CONF_FILE" >/dev/null 2>&1 || /sbin/sysctl --system >/dev/null 2>&1
+  if ! /sbin/sysctl -p "$CONF_FILE" >/dev/null 2>&1 && ! /sbin/sysctl --system >/dev/null 2>&1; then
+    bad "Kernel rejected one or more network settings; review sysctl compatibility before continuing."
+    return 1
+  fi
 
   if have tc && [ -n "$def_iface" ]; then
     info "Setting qdisc to fq on interface $def_iface..."
