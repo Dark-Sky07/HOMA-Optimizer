@@ -196,13 +196,13 @@ STATIC_FILES = {
     "/index.html": ("index.html", "text/html; charset=utf-8"),
     "/app.js": ("app.js", "application/javascript; charset=utf-8"),
     "/styles.css": ("styles.css", "text/css; charset=utf-8"),
-    "/assets/homa-bird.webp": ("assets/homa-bird.webp", "image/webp"),
-    "/assets/homa-mark.svg": ("assets/homa-mark.svg", "image/svg+xml"),
+    "/assets/homa-logo.webp": ("assets/homa-logo.webp", "image/webp"),
+    "/assets/homa-favicon.png": ("assets/homa-favicon.png", "image/png"),
     "/assets/pattern.svg": ("assets/pattern.svg", "image/svg+xml"),
     "/assets/vazirmatn-arabic.woff2": ("assets/vazirmatn-arabic.woff2", "font/woff2"),
     "/assets/vazirmatn-latin.woff2": ("assets/vazirmatn-latin.woff2", "font/woff2"),
     "/assets/FONT-LICENSE.txt": ("assets/FONT-LICENSE.txt", "text/plain; charset=utf-8"),
-    "/favicon.svg": ("assets/homa-mark.svg", "image/svg+xml"),
+    "/favicon.png": ("assets/homa-favicon.png", "image/png"),
 }
 
 

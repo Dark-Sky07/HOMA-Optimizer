@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="panel/static/assets/homa-mark.svg" width="104" height="104" alt="HOMA logo" />
+  <img src="panel/static/assets/homa-logo.webp" width="104" height="104" alt="HOMA logo" />
 
   # HOMA
   ### VPS Optimizer & Graphical Command Center
