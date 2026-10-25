@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-VERSION = "5.2.1"
+VERSION = "5.2.2"
 PANEL_DIR = Path(__file__).resolve().parent
 STATIC_DIR = PANEL_DIR / "static"
 INSTALL_ROOT = PANEL_DIR.parent
@@ -916,7 +916,7 @@ def non_loopback(host: str) -> bool:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="HOMA graphical VPS control panel")
     parser.add_argument("--host", default=os.environ.get("HOMA_PANEL_HOST", "127.0.0.1"))
-    parser.add_argument("--port", type=int, default=int(os.environ.get("HOMA_PANEL_PORT", "8787")))
+    parser.add_argument("--port", type=int, default=int(os.environ.get("HOMA_PANEL_PORT", "8788")))
     parser.add_argument("--token", default=os.environ.get("HOMA_PANEL_TOKEN", ""))
     parser.add_argument(
         "--read-only",

@@ -217,8 +217,8 @@ fi
 if ! grep -q '^HOMA_PANEL_HOST=' "$PANEL_ENV" 2>/dev/null; then
   printf 'HOMA_PANEL_HOST=127.0.0.1\n' >> "$PANEL_ENV"
 fi
-if ! grep -q '^HOMA_PANEL_PORT=' "$PANEL_ENV" 2>/dev/null; then
-  printf 'HOMA_PANEL_PORT=8787\n' >> "$PANEL_ENV"
+if ! grep -q '^HOMA_PANEL_PORT=[1-9][0-9]*$' "$PANEL_ENV" 2>/dev/null; then
+  printf 'HOMA_PANEL_PORT=8788\n' >> "$PANEL_ENV"
 fi
 
 cat <<'EOF' > "$BIN_LINK"
@@ -258,11 +258,15 @@ if [ -f "${PACKAGE_ROOT}/panel/homa-panel.service" ] && command -v systemctl >/d
 fi
 
 PANEL_TOKEN="$(sed -n 's/^HOMA_PANEL_TOKEN=//p' "$PANEL_ENV" | tail -n 1)"
+PANEL_PORT="$(sed -n 's/^HOMA_PANEL_PORT=//p' "$PANEL_ENV" | tail -n 1)"
+if ! [[ "$PANEL_PORT" =~ ^[1-9][0-9]{0,4}$ ]] || [ "$PANEL_PORT" -gt 65535 ]; then
+  PANEL_PORT="8788"
+fi
 printf "\n%s[COMPLETE] HOMA is ready for flight.%s\n\n" "$C_G" "$C_0"
 printf "  Installation:     %s\n" "$INSTALL_DIR"
 printf "  Terminal suite:   %shoma%s\n" "$C_W" "$C_0"
 printf "  Graphical panel:  %shoma-panel%s\n" "$C_W" "$C_0"
-printf "  Local URL:        %shttp://127.0.0.1:8787%s\n" "$C_W" "$C_0"
+printf "  Local URL:        %shttp://127.0.0.1:%s%s\n" "$C_W" "$PANEL_PORT" "$C_0"
 if [ "${HOMA_NONINTERACTIVE:-0}" = "1" ]; then
   printf "  Access token:     stored in %s\n" "$PANEL_ENV"
 else
@@ -274,8 +278,8 @@ else
   printf "  Panel service:    installed, not running\n"
 fi
 printf "\n  Remote access (recommended):\n"
-printf "  ssh -L 8787:127.0.0.1:8787 USER@SERVER\n"
-printf "  Then open http://127.0.0.1:8787 and enter the access token.\n\n"
+printf "  ssh -L %s:127.0.0.1:%s USER@SERVER\n" "$PANEL_PORT" "$PANEL_PORT"
+printf "  Then open http://127.0.0.1:%s and enter the access token.\n\n" "$PANEL_PORT"
 
 if [ "$AUTO_LAUNCH" -eq 1 ] && [ "${HOMA_NONINTERACTIVE:-0}" != "1" ]; then
   if [ -t 0 ]; then

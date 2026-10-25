@@ -2,6 +2,18 @@
 
 All HOMA changes are released with a new version, a changelog entry, and a dedicated GitHub Release. This project follows [Semantic Versioning](https://semver.org/).
 
+## [5.2.2] - 2026-10-25
+
+### Changed
+
+- Change the default panel port from `8787` to `8788` to avoid conflicting with the Simorgh project. New installations write `HOMA_PANEL_PORT=8788` while existing configuration remains preserved during updates.
+- Read the effective configured port in terminal-menu and installer connection instructions instead of displaying a hardcoded URL, including SSH tunnel commands for custom ports.
+- Document the one-time port migration required for existing installations that still use the legacy default.
+
+### Tests
+
+- Add backend coverage for the new default and environment-based port overrides; rerun backend, installer, menu, syntax, ShellCheck, and browser preview checks on port `8788`.
+
 ## [5.2.1] - 2026-10-25
 
 ### Security
@@ -57,5 +69,6 @@ All HOMA changes are released with a new version, a changelog entry, and a dedic
 - Panel updates accept no browser-supplied URL, shell command, or arbitrary argument; downloads are restricted to the official HOMA repository.
 - Same-origin request checks, explicit confirmation, constant-time token comparison, and restrictive content-security headers remain enforced.
 
+[5.2.2]: https://github.com/Dark-Sky07/HOMA-Optimizer/releases/tag/v5.2.2
 [5.2.1]: https://github.com/Dark-Sky07/HOMA-Optimizer/releases/tag/v5.2.1
 [5.2.0]: https://github.com/Dark-Sky07/HOMA-Optimizer/releases/tag/v5.2.0

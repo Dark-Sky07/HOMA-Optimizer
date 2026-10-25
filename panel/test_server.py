@@ -8,6 +8,7 @@ import contextlib
 import http.client
 import io
 import json
+import os
 import tempfile
 import threading
 import time
@@ -49,13 +50,21 @@ class ActionContractTests(unittest.TestCase):
 
 
 class ConfigurationTests(unittest.TestCase):
+    def test_default_and_environment_ports(self) -> None:
+        with mock.patch.dict(os.environ, {}, clear=True):
+            args = server.parse_args([])
+        self.assertEqual(args.port, 8788)
+        with mock.patch.dict(os.environ, {"HOMA_PANEL_PORT": "9443"}, clear=True):
+            args = server.parse_args([])
+        self.assertEqual(args.port, 9443)
+
     def test_public_control_mode_requires_token(self) -> None:
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             server.parse_args(["--host", "0.0.0.0"])
 
     def test_public_read_only_mode_requires_explicit_opt_in(self) -> None:
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
-            server.parse_args(["--host", "0.0.0.0", "--port", "8787", "--read-only"])
+            server.parse_args(["--host", "0.0.0.0", "--port", "8788", "--read-only"])
 
     def test_public_demo_requires_host_allowlist(self) -> None:
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
@@ -64,13 +73,13 @@ class ConfigurationTests(unittest.TestCase):
     def test_explicit_public_read_only_demo_is_allowed(self) -> None:
         args = server.parse_args([
             "--host", "0.0.0.0",
-            "--port", "8787",
+            "--port", "8788",
             "--read-only",
             "--allow-public-read-only",
             "--allowed-host", "demo.example.com",
         ])
         self.assertTrue(args.read_only)
-        self.assertEqual(args.port, 8787)
+        self.assertEqual(args.port, 8788)
         self.assertEqual(args.allowed_hosts, ["demo.example.com"])
 
     def test_loopback_detection(self) -> None:

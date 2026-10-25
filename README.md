@@ -7,7 +7,7 @@
   **Rise Above Limits · سرورت را به اوج ببر**
 
   <p>
-    <img src="https://img.shields.io/badge/Release-v5.2.1-e5b45b.svg?style=for-the-badge&logo=github" alt="Release v5.2.1" />
+    <img src="https://img.shields.io/badge/Release-v5.2.2-e5b45b.svg?style=for-the-badge&logo=github" alt="Release v5.2.2" />
     <img src="https://img.shields.io/badge/Web%20Panel-FA%20%2B%20EN-72d3aa.svg?style=for-the-badge" alt="Bilingual Web Panel" />
     <img src="https://img.shields.io/badge/OS-Ubuntu%20%7C%20Debian-orange.svg?style=for-the-badge&logo=linux" alt="OS Support" />
     <img src="https://img.shields.io/badge/Runtime-Bash%20%2B%20Python%203-informational.svg?style=for-the-badge" alt="Runtime" />
@@ -23,7 +23,7 @@
               |_| |_|\___/|_|  |_/_/   \_\
 
                VPS OPTIMIZER & COMMAND CENTER
-                    Version 5.2.1 · Rise Above Limits
+                    Version 5.2.2 · Rise Above Limits
 ========================================================================
 ```
 
@@ -94,7 +94,9 @@ sudo bash install.sh --no-panel    # بدون راه‌اندازی خودکار
 
 ## 🖥️ ورود به پنل گرافیکی
 
-پنل به‌صورت پیش‌فرض فقط روی آدرس امن محلی `127.0.0.1:8787` اجرا می‌شود و توکن دسترسی تصادفی می‌گیرد.
+پنل به‌صورت پیش‌فرض فقط روی آدرس امن محلی `127.0.0.1:8788` اجرا می‌شود و توکن دسترسی تصادفی می‌گیرد. این پورت برای جلوگیری از تداخل با پروژهٔ سیمرغ انتخاب شده است.
+
+> **ارتقای نصب‌های قبلی:** Updater مقدار موجود `HOMA_PANEL_PORT` را حفظ می‌کند. اگر نصب فعلی هنوز روی `8787` است، یک‌بار مقدار آن را در `/etc/homa/panel.env` به `8788` تغییر دهید و سپس `sudo systemctl restart homa-panel` را اجرا کنید.
 
 ### مشاهدهٔ توکن و وضعیت سرویس
 
@@ -106,13 +108,13 @@ sudo cat /etc/homa/panel.env
 ### اتصال امن از سیستم خودتان با SSH Tunnel
 
 ```bash
-ssh -L 8787:127.0.0.1:8787 USER@SERVER
+ssh -L 8788:127.0.0.1:8788 USER@SERVER
 ```
 
 سپس در مرورگر باز کنید:
 
 ```text
-http://127.0.0.1:8787
+http://127.0.0.1:8788
 ```
 
 توکن نمایش‌داده‌شده در پایان نصب یا مقدار `HOMA_PANEL_TOKEN` را وارد کنید. توکن فقط در Session Storage همان تب مرورگر نگهداری می‌شود.
