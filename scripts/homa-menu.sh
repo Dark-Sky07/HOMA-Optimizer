@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #===============================================================================
 #  homa — HOMA VPS All In One Optimizer Interactive TUI Menu
-#  Version: 5.2.1 (Security & Reliability Audit Edition)
+#  Version: 5.2.2
 #
 #  100% English Terminal Output to guarantee pristine rendering across all
 #  SSH clients, mobile terminals (Termius, JuiceSSH), and web consoles.
@@ -11,7 +11,7 @@ export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
 set -u
 set -o pipefail
 
-VERSION="5.2.1"
+VERSION="5.2.2"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [ -f "${SCRIPT_DIR}/homa-watchdog.sh" ] || SCRIPT_DIR="/opt/homa/scripts"
 [ -f "${SCRIPT_DIR}/homa-watchdog.sh" ] || SCRIPT_DIR="/opt/homa"
@@ -68,6 +68,19 @@ get_panel_status() {
     printf "%sInstalled (Inactive)%s" "$C_Y" "$C_0"
   else
     printf "%sNot Detected%s" "$C_W" "$C_0"
+  fi
+}
+
+get_panel_port() {
+  local config_file="${1:-/etc/homa/panel.env}"
+  local port=""
+  if [ -r "$config_file" ]; then
+    port="$(sed -n 's/^HOMA_PANEL_PORT=//p' "$config_file" 2>/dev/null | tail -n 1)"
+  fi
+  if [[ "$port" =~ ^[1-9][0-9]{0,4}$ ]] && [ "$port" -le 65535 ]; then
+    printf '%s\n' "$port"
+  else
+    printf '8788\n'
   fi
 }
 
@@ -665,14 +678,16 @@ main_menu() {
         ;;
       w|W)
         clear_screen
+        local panel_port
+        panel_port="$(get_panel_port)"
         printf "%s=== HOMA GRAPHICAL CONTROL PANEL ===%s\n\n" "$C_B" "$C_0"
         if command -v systemctl >/dev/null 2>&1 && systemctl enable --now homa-panel.service >/dev/null 2>&1; then
-          printf "%s[OK]%s HOMA panel is running at http://127.0.0.1:8787\n" "$C_G" "$C_0"
+          printf "%s[OK]%s HOMA panel is running at http://127.0.0.1:%s\n" "$C_G" "$C_0" "$panel_port"
           printf "Access token: %s\n" "$(sed -n 's/^HOMA_PANEL_TOKEN=//p' /etc/homa/panel.env 2>/dev/null | tail -n 1)"
           printf "For remote access, use the SSH tunnel documented in README.md.\n"
         elif command -v homa-panel >/dev/null 2>&1; then
           printf "Start the panel with: %shoma-panel%s\n" "$C_W" "$C_0"
-          printf "Then open http://127.0.0.1:8787 in your browser.\n"
+          printf "Then open http://127.0.0.1:%s in your browser.\n" "$panel_port"
         else
           printf "%s[WARN]%s Panel files are not installed. Run the HOMA installer first.\n" "$C_Y" "$C_0"
         fi
